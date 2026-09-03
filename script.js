@@ -1,4 +1,43 @@
-const STORAGE_KEY = "rng-vault-v4";
+/* =========================================================
+   RNG VAULT
+   Online version
+========================================================= */
+
+
+/* =========================================================
+   SUPABASE CONFIG
+========================================================= */
+
+/*
+    IMPORTANT:
+
+    Replace these two values with the values from your
+    Supabase project.
+
+    NEVER put a Supabase secret/service_role key here.
+    Only use the public/publishable browser key.
+*/
+
+const SUPABASE_URL =
+    "YOUR_SUPABASE_PROJECT_URL";
+
+const SUPABASE_KEY =
+    "YOUR_SUPABASE_PUBLISHABLE_KEY";
+
+
+const supabaseClient =
+    window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+    );
+
+
+/* =========================================================
+   STORAGE
+========================================================= */
+
+const LOCAL_STORAGE_KEY =
+    "rng-vault-local-v5";
 
 
 /* =========================================================
@@ -118,371 +157,347 @@ const MILESTONES = [
    BADGES
 ========================================================= */
 
-/*
-    These are intentionally original badges.
-
-    There are common badges, rare badges,
-    extremely rare number-specific badges,
-    and absurdly rare "god tier" badges.
-*/
-
 const BADGE_DEFS = [
 
-    ["single", "Single Digit", 10, n => n < 10],
+    ["single", "Single Digit", 10,
+        n => n < 10],
 
-    ["zero", "Zero", 50, n => n === 0],
+    ["zero", "Zero", 50,
+        n => n === 0],
 
-    ["one", "The One", 50000, n => n === 1],
+    ["one", "The One", 50000,
+        n => n === 1],
 
-    ["two", "The Two", 30000, n => n === 2],
+    ["two", "The Two", 30000,
+        n => n === 2],
 
-    ["three", "The Three", 20000, n => n === 3],
+    ["three", "The Three", 20000,
+        n => n === 3],
 
-    ["four", "The Four", 15000, n => n === 4],
+    ["four", "The Four", 15000,
+        n => n === 4],
 
-    ["five", "The Five", 12000, n => n === 5],
+    ["five", "The Five", 12000,
+        n => n === 5],
 
-    ["six", "The Six", 10000, n => n === 6],
+    ["six", "The Six", 10000,
+        n => n === 6],
 
-    ["seven", "The Seven", 10000, n => n === 7],
+    ["seven", "The Seven", 10000,
+        n => n === 7],
 
-    ["eight", "The Eight", 10000, n => n === 8],
+    ["eight", "The Eight", 10000,
+        n => n === 8],
 
-    ["nine", "The Nine", 10000, n => n === 9],
+    ["nine", "The Nine", 10000,
+        n => n === 9],
 
-    ["even", "Even", 5, n => n % 2 === 0],
+    ["even", "Even", 5,
+        n => n % 2 === 0],
 
-    ["odd", "Odd", 5, n => n % 2 === 1],
+    ["odd", "Odd", 5,
+        n => n % 2 === 1],
 
-    ["prime", "Prime", 80, isPrime],
+    ["prime", "Prime", 80,
+        isPrime],
 
-    ["pal", "Palindrome", 100, palindrome],
+    ["pal", "Palindrome", 100,
+        palindrome],
 
     ["repeat", "Repeating Digits", 75,
-        n => new Set(digits(n)).size < digits(n).length
-    ],
+        n =>
+            new Set(digits(n)).size <
+            digits(n).length],
 
     ["unique", "All Unique", 150,
-        n => new Set(digits(n)).size === digits(n).length
-    ],
+        n =>
+            new Set(digits(n)).size ===
+            digits(n).length],
 
-    ["asc", "Ascending", 150, ascending],
+    ["asc", "Ascending", 150,
+        ascending],
 
-    ["desc", "Descending", 150, descending],
+    ["desc", "Descending", 150,
+        descending],
 
-    ["neighbors", "Neighbors", 80, neighbors],
+    ["neighbors", "Neighbors", 80,
+        neighbors],
 
     ["echo", "Echo", 250,
-        n => /^(\d+)\1$/.test(String(n))
-    ],
+        n => /^(\d+)\1$/.test(String(n))],
 
     ["hetero", "Heterogeneous", 50,
-        n => new Set(digits(n)).size === digits(n).length
-    ],
+        n =>
+            new Set(digits(n)).size ===
+            digits(n).length],
 
     ["harshad", "Harshad", 120,
-        n => n > 0 && n % digitSum(n) === 0
-    ],
+        n =>
+            n > 0 &&
+            n % digitSum(n) === 0],
 
     ["spy", "Spy", 150,
-        n => n > 0 && digitSum(n) === digitProduct(n)
-    ],
+        n =>
+            n > 0 &&
+            digitSum(n) ===
+            digitProduct(n)],
 
-    ["fibo", "Fibonacci", 300, fibonacci],
+    ["fibo", "Fibonacci", 300,
+        fibonacci],
 
-    ["square", "Perfect Square", 400, perfectSquare],
+    ["square", "Perfect Square", 400,
+        perfectSquare],
 
     ["power2", "Power of Two", 500,
-        n => powerOf(n, 2)
-    ],
+        n => powerOf(n, 2)],
 
     ["power3", "Power of Three", 700,
-        n => powerOf(n, 3)
-    ],
+        n => powerOf(n, 3)],
 
-    ["factorial", "Factorial", 1200, factorial],
+    ["factorial", "Factorial", 1200,
+        factorial],
 
     ["pair", "Double Pair", 300,
-        n => /(00|11|22|33|44|55|66|77|88|99)/.test(String(n))
-    ],
+        n =>
+            /(00|11|22|33|44|55|66|77|88|99)/
+                .test(String(n))],
 
     ["twopair", "Two Pairs", 700,
-        n => countRepeatedDigits(n) >= 2
-    ],
+        n => countRepeatedDigits(n) >= 2],
 
     ["triple", "Triple", 1000,
-        n => /(.)\1\1/.test(String(n))
-    ],
+        n => /(.)\1\1/.test(String(n))],
 
     ["quad", "Quad", 3000,
-        n => /(.)\1\1\1/.test(String(n))
-    ],
+        n => /(.)\1\1\1/.test(String(n))],
 
     ["pent", "Five Stack", 10000,
-        n => /(.)\1\1\1\1/.test(String(n))
-    ],
+        n => /(.)\1\1\1\1/.test(String(n))],
 
     ["hex", "Six Stack", 50000,
-        n => /(.)\1\1\1\1\1/.test(String(n))
-    ],
+        n => /(.)\1\1\1\1\1/.test(String(n))],
 
     ["nice", "Nice", 690,
-        n => n === 69
-    ],
+        n => n === 69],
 
     ["blaze", "Blaze", 4200,
-        n => n === 420
-    ],
+        n => n === 420],
 
     ["answer", "The Answer", 4200,
-        n => n === 42
-    ],
+        n => n === 42],
 
     ["beast", "The Beast", 6666,
-        n => n === 666
-    ],
+        n => n === 666],
 
     ["lucky7", "Lucky Seven", 777,
-        n => n % 7 === 0
-    ],
+        n => n % 7 === 0],
 
     ["lucky13", "Unlucky 13", 1300,
-        n => n % 13 === 0
-    ],
+        n => n % 13 === 0],
 
     ["seq123", "123", 1234,
-        n => String(n).includes("123")
-    ],
+        n => String(n).includes("123")],
 
     ["double", "Double Number", 500,
         n => {
 
             const s = String(n);
 
-            return s.length % 2 === 0 &&
-                s.slice(0, s.length / 2) ===
-                s.slice(s.length / 2);
+            return (
+                s.length % 2 === 0 &&
+                s.slice(
+                    0,
+                    s.length / 2
+                ) ===
+                s.slice(
+                    s.length / 2
+                )
+            );
 
-        }
-    ],
+        }],
 
-    ["mirror", "Mirror", 800, palindrome],
+    ["mirror", "Mirror", 800,
+        palindrome],
 
     ["centerzero", "Center Zero", 600,
         n => {
 
             const s = String(n);
 
-            return s.length >= 3 &&
-                s[Math.floor(s.length / 2)] === "0";
+            return (
+                s.length >= 3 &&
+                s[
+                    Math.floor(s.length / 2)
+                ] === "0"
+            );
 
-        }
-    ],
+        }],
 
     ["endszero", "Zero Ends", 400,
-        n => n % 10 === 0
-    ],
+        n => n % 10 === 0],
 
     ["doublezero", "Double Zero", 900,
-        n => String(n).includes("00")
-    ],
+        n => String(n).includes("00")],
 
     ["alllow", "All Low", 1000,
-        n => digits(n).every(x => x <= 3)
-    ],
+        n => digits(n).every(x => x <= 3)],
 
     ["allhigh", "All High", 1000,
-        n => digits(n).every(x => x >= 6)
-    ],
+        n => digits(n).every(x => x >= 6)],
 
     ["allodd", "All Odd", 2000000,
-        n => digits(n).every(x => x % 2 === 1)
-    ],
+        n => digits(n).every(x => x % 2 === 1)],
 
     ["alleven", "All Even", 2000000,
-        n => digits(n).every(x => x % 2 === 0)
-    ],
+        n => digits(n).every(x => x % 2 === 0)],
 
     ["alternating", "Alternating", 1200,
-        alternatingParity
-    ],
+        alternatingParity],
 
     ["stairs", "Stairs", 1500,
-        constantSpacing
-    ],
+        constantSpacing],
 
     ["sum10", "Digit Sum 10", 800,
-        n => digitSum(n) === 10
-    ],
+        n => digitSum(n) === 10],
 
     ["sum20", "Digit Sum 20", 1200,
-        n => digitSum(n) === 20
-    ],
+        n => digitSum(n) === 20],
 
     ["sum30", "Digit Sum 30", 3000,
-        n => digitSum(n) === 30
-    ],
+        n => digitSum(n) === 30],
 
     ["sum40", "Digit Sum 40", 10000,
-        n => digitSum(n) === 40
-    ],
+        n => digitSum(n) === 40],
 
     ["perfect10", "Perfect Ten", 2000,
-        n => n > 0 &&
+        n =>
+            n > 0 &&
             n % 10 === 0 &&
-            digitSum(n) === 10
-    ],
+            digitSum(n) === 10],
 
     ["perfect100", "Perfect Hundred", 5000,
-        n => n > 0 &&
-            n % 100 === 0
-    ],
+        n =>
+            n > 0 &&
+            n % 100 === 0],
 
     ["fivezeros", "Five Zeros", 5000,
-        n => (String(n).match(/0/g) || []).length >= 5
-    ],
+        n =>
+            (String(n).match(/0/g) || [])
+                .length >= 5],
 
     ["fivedigits", "Five Digits", 10,
-        n => n >= 10000
-    ],
+        n => n >= 10000],
 
     ["sixdigits", "Six Digits", 20,
-        n => n >= 100000
-    ],
+        n => n >= 100000],
 
     ["binary", "Binary", 1000000,
-        n => /^[01]+$/.test(String(n))
-    ],
+        n => /^[01]+$/.test(String(n))],
 
     ["ternary", "Ternary", 1200000,
-        n => /^[012]+$/.test(String(n))
-    ],
+        n => /^[012]+$/.test(String(n))],
 
     ["basefour", "Base Four", 1500000,
-        n => /^[0-3]+$/.test(String(n))
-    ],
+        n => /^[0-3]+$/.test(String(n))],
 
     ["basefive", "Base Five", 1800000,
-        n => /^[0-4]+$/.test(String(n))
-    ],
-
-    /* VERY RARE NUMBERS */
+        n => /^[0-4]+$/.test(String(n))],
 
     ["123456", "Perfect Sequence", 500000,
-        n => n === 123456
-    ],
+        n => n === 123456],
 
     ["654321", "Reverse Sequence", 500000,
-        n => n === 654321
-    ],
+        n => n === 654321],
 
     ["111111", "Six Ones", 800000,
-        n => n === 111111
-    ],
+        n => n === 111111],
 
     ["222222", "Six Twos", 800000,
-        n => n === 222222
-    ],
+        n => n === 222222],
 
     ["333333", "Six Threes", 800000,
-        n => n === 333333
-    ],
+        n => n === 333333],
 
     ["444444", "Six Fours", 800000,
-        n => n === 444444
-    ],
+        n => n === 444444],
 
     ["555555", "Six Fives", 800000,
-        n => n === 555555
-    ],
+        n => n === 555555],
 
     ["666666", "Six Sixes", 900000,
-        n => n === 666666
-    ],
+        n => n === 666666],
 
     ["777777", "Six Sevens", 1000000,
-        n => n === 777777
-    ],
+        n => n === 777777],
 
     ["888888", "Six Eights", 900000,
-        n => n === 888888
-    ],
+        n => n === 888888],
 
     ["999999", "Six Nines", 1000000,
-        n => n === 999999
-    ],
+        n => n === 999999],
 
     ["696969", "Nice Nice Nice", 750000,
-        n => n === 696969
-    ],
+        n => n === 696969],
 
     ["420420", "Double Blaze", 750000,
-        n => n === 420420
-    ],
+        n => n === 420420],
 
     ["314159", "Pi", 1500000,
-        n => n === 314159
-    ],
+        n => n === 314159],
 
     ["271828", "Euler", 1500000,
-        n => n === 271828
-    ],
+        n => n === 271828],
 
     ["161803", "Golden Ratio", 1500000,
-        n => n === 161803
-    ],
+        n => n === 161803],
 
     ["867530", "Jenny", 2000000,
-        n => n === 867530
-    ],
+        n => n === 867530],
 
     ["800813", "Ancient Meme", 2000000,
-        n => n === 800813
-    ],
+        n => n === 800813],
 
     ["420069", "Cursed Blaze", 3000000,
-        n => n === 420069
-    ],
-
-    /* EXTREMELY RARE */
+        n => n === 420069],
 
     ["perfectpal6", "Perfect Six", 5000000,
         n => {
 
             const s = String(n);
 
-            return s.length === 6 &&
-                s === [...s].reverse().join("");
+            return (
+                s.length === 6 &&
+                s ===
+                [...s]
+                    .reverse()
+                    .join("")
+            );
 
-        }
-    ],
+        }],
 
     ["allunique6", "Six Unique", 2500000,
         n => {
 
             const s = String(n);
 
-            return s.length === 6 &&
-                new Set(s).size === 6;
+            return (
+                s.length === 6 &&
+                new Set(s).size === 6
+            );
 
-        }
-    ],
+        }],
 
     ["million", "One Million", 250000000,
-        n => n === 1000000
-    ],
+        n => n === 1000000],
 
     ["god1", "Reality Breaker", 25000000,
-        n => n === 999998
-    ],
+        n => n === 999998],
 
     ["god2", "System Error", 50000000,
-        n => n === 999997
-    ],
+        n => n === 999997],
 
     ["god3", "Impossible", 100000000,
-        n => n === 999996
-    ]
+        n => n === 999996]
 
 ];
 
@@ -491,51 +506,67 @@ const BADGE_DEFS = [
    STATE
 ========================================================= */
 
-let state = {
+let state = createFreshState();
 
-    username: "",
+let currentUser = null;
 
-    totalEp: 0,
+let authMode = "signin";
 
-    totalRolls: 0,
+let saveTimer = null;
 
-    bestEp: 0,
-
-    bestNumber: null,
-
-    mythics: 0,
-
-    anomalies: 0,
-
-    epics: 0,
-
-    rarityCounts: {},
-
-    foundBadges: {},
-
-    history: [],
-
-    rarityHistory: {
-
-        ANOMALY: [],
-
-        MYTHIC: []
-
-    },
-
-    milestones: []
-
-};
+let onlineSaveReady = false;
 
 
-for (const rarity of RARITIES) {
+function createFreshState() {
 
-    state.rarityCounts[rarity.name] = 0;
+    const rarityCounts = {};
+
+    for (const rarity of RARITIES) {
+
+        rarityCounts[
+            rarity.name
+        ] = 0;
+
+    }
+
+
+    return {
+
+        username: "",
+
+        totalEp: 0,
+
+        totalRolls: 0,
+
+        bestEp: 0,
+
+        bestNumber: null,
+
+        mythics: 0,
+
+        anomalies: 0,
+
+        epics: 0,
+
+        rarityCounts,
+
+        foundBadges: {},
+
+        history: [],
+
+        rarityHistory: {
+
+            ANOMALY: [],
+
+            MYTHIC: []
+
+        },
+
+        milestones: []
+
+    };
 
 }
-
-
-loadState();
 
 
 /* =========================================================
@@ -561,7 +592,10 @@ function digits(n) {
 function digitSum(n) {
 
     return digits(n)
-        .reduce((a, b) => a + b, 0);
+        .reduce(
+            (a, b) => a + b,
+            0
+        );
 
 }
 
@@ -569,7 +603,10 @@ function digitSum(n) {
 function digitProduct(n) {
 
     return digits(n)
-        .reduce((a, b) => a * b, 1);
+        .reduce(
+            (a, b) => a * b,
+            1
+        );
 
 }
 
@@ -578,8 +615,10 @@ function palindrome(n) {
 
     const s = String(n);
 
-    return s ===
-        [...s].reverse().join("");
+    return (
+        s ===
+        [...s].reverse().join("")
+    );
 
 }
 
@@ -617,11 +656,18 @@ function fibonacci(n) {
         return false;
 
     let a = 0;
+
     let b = 1;
 
     while (a < n) {
 
-        [a, b] = [b, a + b];
+        [
+            a,
+            b
+        ] = [
+            b,
+            a + b
+        ];
 
     }
 
@@ -644,7 +690,9 @@ function powerOf(n, base) {
     if (n < 1)
         return false;
 
-    while (n % base === 0) {
+    while (
+        n % base === 0
+    ) {
 
         n /= base;
 
@@ -693,8 +741,14 @@ function ascending(n) {
         i++
     ) {
 
-        if (d[i] < d[i - 1])
+        if (
+            d[i] <
+            d[i - 1]
+        ) {
+
             return false;
+
+        }
 
     }
 
@@ -716,8 +770,14 @@ function descending(n) {
         i++
     ) {
 
-        if (d[i] > d[i - 1])
+        if (
+            d[i] >
+            d[i - 1]
+        ) {
+
             return false;
+
+        }
 
     }
 
@@ -741,7 +801,8 @@ function neighbors(n) {
 
         if (
             Math.abs(
-                d[i] - d[i - 1]
+                d[i] -
+                d[i - 1]
             ) !== 1
         ) {
 
@@ -802,7 +863,8 @@ function constantSpacing(n) {
     ) {
 
         if (
-            d[i] - d[i - 1] !==
+            d[i] -
+            d[i - 1] !==
             difference
         ) {
 
@@ -821,7 +883,9 @@ function countRepeatedDigits(n) {
 
     const counts = {};
 
-    for (const d of digits(n)) {
+    for (
+        const d of digits(n)
+    ) {
 
         counts[d] =
             (counts[d] || 0) + 1;
@@ -830,7 +894,9 @@ function countRepeatedDigits(n) {
 
     return Object
         .values(counts)
-        .filter(x => x >= 2)
+        .filter(
+            x => x >= 2
+        )
         .length;
 
 }
@@ -839,7 +905,8 @@ function countRepeatedDigits(n) {
 function getBadge(id) {
 
     return BADGE_DEFS.find(
-        badge => badge[0] === id
+        badge =>
+            badge[0] === id
     );
 
 }
@@ -849,7 +916,9 @@ function getBadgeIds(number) {
 
     const found = [];
 
-    for (const badge of BADGE_DEFS) {
+    for (
+        const badge of BADGE_DEFS
+    ) {
 
         const [
             id,
@@ -860,7 +929,9 @@ function getBadgeIds(number) {
 
         try {
 
-            if (condition(number)) {
+            if (
+                condition(number)
+            ) {
 
                 found.push(id);
 
@@ -868,7 +939,7 @@ function getBadgeIds(number) {
 
         } catch {
 
-            // Ignore bad badge conditions.
+            // Ignore malformed conditions.
 
         }
 
@@ -878,10 +949,6 @@ function getBadgeIds(number) {
 
 }
 
-
-/* =========================================================
-   RARITY
-========================================================= */
 
 function getRarity(number) {
 
@@ -908,6 +975,14 @@ function getRarity(number) {
 }
 
 
+function formatNumber(n) {
+
+    return Number(n || 0)
+        .toLocaleString();
+
+}
+
+
 /* =========================================================
    ANALYSIS
 ========================================================= */
@@ -919,43 +994,49 @@ function analyze(number) {
 
     let ep = 0;
 
-    for (const id of badgeIds) {
+    for (
+        const id of badgeIds
+    ) {
 
         ep += getBadge(id)[2];
 
     }
 
+
     let effect = "None";
 
-
-    /*
-        Extremely tiny random bonuses.
-    */
-
-    const luck = Math.random();
+    const luck =
+        Math.random();
 
 
     if (luck < 0.00001) {
 
         ep += 1000000;
 
-        effect = "COSMIC LUCK";
+        effect =
+            "COSMIC LUCK";
 
     }
 
-    else if (luck < 0.0001) {
+    else if (
+        luck < 0.0001
+    ) {
 
         ep += 100000;
 
-        effect = "EXTREME LUCK";
+        effect =
+            "EXTREME LUCK";
 
     }
 
-    else if (luck < 0.001) {
+    else if (
+        luck < 0.001
+    ) {
 
         ep += 10000;
 
-        effect = "LUCKY BURST";
+        effect =
+            "LUCKY BURST";
 
     }
 
@@ -964,7 +1045,8 @@ function analyze(number) {
 
         number,
 
-        rarity: getRarity(number),
+        rarity:
+            getRarity(number),
 
         ep,
 
@@ -981,13 +1063,26 @@ function analyze(number) {
    ROLL
 ========================================================= */
 
-function roll() {
+async function roll() {
+
+    if (
+        $("rollButton").disabled
+    ) {
+
+        return;
+
+    }
+
 
     const min =
-        Number($("minNumber").value);
+        Number(
+            $("minNumber").value
+        );
 
     const max =
-        Number($("maxNumber").value);
+        Number(
+            $("maxNumber").value
+        );
 
 
     if (
@@ -1039,10 +1134,18 @@ function roll() {
 
     state.rarityCounts[
         result.rarity
-    ]++;
+    ] =
+        (
+            state.rarityCounts[
+                result.rarity
+            ] || 0
+        ) + 1;
 
 
-    if (result.rarity === "MYTHIC") {
+    if (
+        result.rarity ===
+        "MYTHIC"
+    ) {
 
         state.mythics++;
 
@@ -1053,7 +1156,8 @@ function roll() {
 
                 number,
 
-                ep: result.ep,
+                ep:
+                    result.ep,
 
                 badges:
                     result.badgeIds
@@ -1062,7 +1166,8 @@ function roll() {
                                 getBadge(id)[1]
                         ),
 
-                time: Date.now()
+                time:
+                    Date.now()
 
             });
 
@@ -1071,12 +1176,18 @@ function roll() {
             .MYTHIC =
             state.rarityHistory
                 .MYTHIC
-                .slice(0, 500);
+                .slice(
+                    0,
+                    500
+                );
 
     }
 
 
-    if (result.rarity === "ANOMALY") {
+    if (
+        result.rarity ===
+        "ANOMALY"
+    ) {
 
         state.anomalies++;
 
@@ -1087,7 +1198,8 @@ function roll() {
 
                 number,
 
-                ep: result.ep,
+                ep:
+                    result.ep,
 
                 badges:
                     result.badgeIds
@@ -1096,7 +1208,8 @@ function roll() {
                                 getBadge(id)[1]
                         ),
 
-                time: Date.now()
+                time:
+                    Date.now()
 
             });
 
@@ -1105,12 +1218,18 @@ function roll() {
             .ANOMALY =
             state.rarityHistory
                 .ANOMALY
-                .slice(0, 500);
+                .slice(
+                    0,
+                    500
+                );
 
     }
 
 
-    if (result.rarity === "EPIC") {
+    if (
+        result.rarity ===
+        "EPIC"
+    ) {
 
         state.epics++;
 
@@ -1118,10 +1237,13 @@ function roll() {
 
 
     for (
-        const id of result.badgeIds
+        const id of
+        result.badgeIds
     ) {
 
-        if (!state.foundBadges[id]) {
+        if (
+            !state.foundBadges[id]
+        ) {
 
             state.foundBadges[id] = {
 
@@ -1141,16 +1263,22 @@ function roll() {
     }
 
 
-    state.history.unshift(result);
+    state.history.unshift(
+        result
+    );
+
 
     state.history =
-        state.history.slice(0, 100);
+        state.history.slice(
+            0,
+            100
+        );
 
 
     checkMilestones();
 
 
-    saveState();
+    saveLocal();
 
     renderAll();
 
@@ -1160,9 +1288,14 @@ function roll() {
         "MYTHIC"
     ) {
 
-        mythicEffect(result);
+        await mythicEffect(
+            result
+        );
 
     }
+
+
+    queueOnlineSave();
 
 }
 
@@ -1174,18 +1307,23 @@ function roll() {
 function checkMilestones() {
 
     for (
-        const milestone of MILESTONES
+        const milestone
+        of MILESTONES
     ) {
 
         if (
             state.totalEp >=
             milestone.ep &&
             !state.milestones
-                .includes(milestone.ep)
+                .includes(
+                    milestone.ep
+                )
         ) {
 
             state.milestones
-                .push(milestone.ep);
+                .push(
+                    milestone.ep
+                );
 
 
             showMilestone(
@@ -1203,7 +1341,7 @@ function checkMilestones() {
 
 
 /* =========================================================
-   MYTHIC SOUND
+   SOUND
 ========================================================= */
 
 function playMythicSound() {
@@ -1329,84 +1467,97 @@ function playMythicSound() {
 
 function mythicEffect(result) {
 
-    const button =
-        $("rollButton");
+    return new Promise(
+        resolve => {
 
+            const button =
+                $("rollButton");
 
-    button.disabled = true;
-
-
-    playMythicSound();
-
-
-    const screen =
-        document.createElement(
-            "div"
-        );
-
-
-    screen.className =
-        "mythic-screen";
-
-
-    screen.innerHTML = `
-
-        <div class="mythic-screen-text">
-
-            ✦ MYTHIC ✦
-
-            <div
-                style="
-                    font-size:35px;
-                    margin-top:20px;
-                    letter-spacing:2px;
-                "
-            >
-
-                ${result.number.toLocaleString()}
-
-            </div>
-
-
-            <div
-                style="
-                    font-size:25px;
-                    margin-top:10px;
-                    letter-spacing:1px;
-                "
-            >
-
-                ${formatNumber(result.ep)} EP
-
-            </div>
-
-        </div>
-
-    `;
-
-
-    document.body.appendChild(
-        screen
-    );
-
-
-    setTimeout(
-        () => {
-
-            screen.remove();
 
             button.disabled =
-                false;
+                true;
 
-        },
-        3000
+
+            playMythicSound();
+
+
+            const screen =
+                document.createElement(
+                    "div"
+                );
+
+
+            screen.className =
+                "mythic-screen";
+
+
+            screen.innerHTML = `
+
+                <div
+                    class="mythic-screen-text"
+                >
+
+                    ✦ MYTHIC ✦
+
+                    <div
+                        style="
+                            font-size:35px;
+                            margin-top:20px;
+                            letter-spacing:2px;
+                        "
+                    >
+
+                        ${result.number.toLocaleString()}
+
+                    </div>
+
+
+                    <div
+                        style="
+                            font-size:25px;
+                            margin-top:10px;
+                            letter-spacing:1px;
+                        "
+                    >
+
+                        ${formatNumber(
+                            result.ep
+                        )} EP
+
+                    </div>
+
+                </div>
+
+            `;
+
+
+            document.body.appendChild(
+                screen
+            );
+
+
+            setTimeout(
+                () => {
+
+                    screen.remove();
+
+                    button.disabled =
+                        false;
+
+                    resolve();
+
+                },
+                3000
+            );
+
+        }
     );
 
 }
 
 
 /* =========================================================
-   MILESTONE POPUP
+   MILESTONE TOAST
 ========================================================= */
 
 function showMilestone(
@@ -1485,7 +1636,9 @@ function showRarityHistory(type) {
 
     let html = `
 
-        <div class="rarity-popup-box">
+        <div
+            class="rarity-popup-box"
+        >
 
             <button
                 class="close-rarity"
@@ -1511,9 +1664,11 @@ function showRarityHistory(type) {
                     color:var(--muted)
                 "
             >
+
                 You haven't found any
                 ${type.toLowerCase()}
                 numbers yet.
+
             </p>
 
         `;
@@ -1523,7 +1678,8 @@ function showRarityHistory(type) {
     else {
 
         for (
-            const entry of entries
+            const entry
+            of entries
         ) {
 
             html += `
@@ -1584,9 +1740,7 @@ function showRarityHistory(type) {
 
 
     html += `
-
         </div>
-
     `;
 
 
@@ -1628,45 +1782,51 @@ function showRarityHistory(type) {
 
 function renderStats() {
 
-    $("totalEp").textContent =
+    $("totalEp")
+        .textContent =
         formatNumber(
             state.totalEp
         );
 
 
-    $("totalRolls").textContent =
+    $("totalRolls")
+        .textContent =
         formatNumber(
             state.totalRolls
         );
 
 
-    $("bestEp").textContent =
+    $("bestEp")
+        .textContent =
         formatNumber(
             state.bestEp
         );
 
 
-    $("bestNumber").textContent =
+    $("bestNumber")
+        .textContent =
         state.bestNumber === null
             ? "—"
             : state.bestNumber
                 .toLocaleString();
 
 
-    $("mythics").textContent =
+    $("mythics")
+        .textContent =
         formatNumber(
             state.mythics
         );
 
 
-    $("anomalies").textContent =
+    $("anomalies")
+        .textContent =
         formatNumber(
             state.anomalies
         );
 
 
-    $("badgesFound").textContent =
-
+    $("badgesFound")
+        .textContent =
         `${Object.keys(
             state.foundBadges
         ).length}/${BADGE_DEFS.length}`;
@@ -1708,18 +1868,27 @@ function renderRarities() {
             <div
                 class="rarity-name"
             >
+
                 ${rarity.name}
+
             </div>
+
 
             <div
                 class="rarity-count"
             >
-                ${formatNumber(count)}
+
+                ${formatNumber(
+                    count
+                )}
+
             </div>
+
 
             <div
                 class="rarity-percent"
             >
+
                 ${
                     state.totalRolls
                         ? (
@@ -1729,6 +1898,7 @@ function renderRarities() {
                         ).toFixed(3)
                         : "0.000"
                 }%
+
             </div>
 
         `;
@@ -1803,7 +1973,10 @@ function renderBadges() {
                 class="badge-ep"
             >
 
-                ${formatNumber(ep)}
+                ${formatNumber(
+                    ep
+                )}
+
                 EP
 
             </div>
@@ -1895,7 +2068,9 @@ function renderMilestones() {
 
                 ${formatNumber(
                     milestone.ep
-                )} total EP
+                )}
+
+                total EP
 
             </div>
 
@@ -2018,11 +2193,24 @@ function renderHistory() {
 
 function renderAccount() {
 
-    $("accountStatus")
-        .textContent =
-        state.username
-            ? state.username
-            : "Guest";
+    if (currentUser) {
+
+        $("accountStatus")
+            .textContent =
+            state.username ||
+            currentUser.email ||
+            "Online";
+
+    }
+
+    else {
+
+        $("accountStatus")
+            .textContent =
+            state.username ||
+            "Guest";
+
+    }
 
 }
 
@@ -2045,32 +2233,471 @@ function renderAll() {
 
 
 /* =========================================================
-   ACCOUNT
+   LOCAL SAVE
 ========================================================= */
 
-function openAccount() {
+function saveLocal() {
 
-    $("usernameInput").value =
-        state.username || "";
+    try {
 
+        localStorage.setItem(
+            LOCAL_STORAGE_KEY,
+            JSON.stringify(state)
+        );
 
-    $("accountDialog").showModal();
+    }
+
+    catch (error) {
+
+        console.log(
+            "Local save failed:",
+            error
+        );
+
+    }
 
 }
 
 
-function saveAccount() {
+function loadLocal() {
 
-    const username =
-        $("usernameInput")
+    try {
+
+        const saved =
+            localStorage.getItem(
+                LOCAL_STORAGE_KEY
+            );
+
+
+        if (!saved)
+            return;
+
+
+        const parsed =
+            JSON.parse(saved);
+
+
+        state = mergeState(
+            createFreshState(),
+            parsed
+        );
+
+    }
+
+    catch (error) {
+
+        console.log(
+            "Local load failed:",
+            error
+        );
+
+    }
+
+}
+
+
+function mergeState(
+    base,
+    incoming
+) {
+
+    return {
+
+        ...base,
+
+        ...incoming,
+
+        rarityCounts: {
+
+            ...base.rarityCounts,
+
+            ...(incoming.rarityCounts || {})
+
+        },
+
+        foundBadges: {
+
+            ...(incoming.foundBadges || {})
+
+        },
+
+        history:
+            Array.isArray(
+                incoming.history
+            )
+                ? incoming.history
+                : [],
+
+        rarityHistory: {
+
+            ANOMALY:
+                incoming.rarityHistory
+                    ?.ANOMALY || [],
+
+            MYTHIC:
+                incoming.rarityHistory
+                    ?.MYTHIC || []
+
+        },
+
+        milestones:
+            Array.isArray(
+                incoming.milestones
+            )
+                ? incoming.milestones
+                : []
+
+    };
+
+}
+
+
+/* =========================================================
+   ONLINE SAVE
+========================================================= */
+
+function queueOnlineSave() {
+
+    if (
+        !currentUser ||
+        !onlineSaveReady
+    ) {
+
+        return;
+
+    }
+
+
+    clearTimeout(
+        saveTimer
+    );
+
+
+    saveTimer =
+        setTimeout(
+            saveOnline,
+            700
+        );
+
+}
+
+
+async function saveOnline() {
+
+    if (
+        !currentUser ||
+        !onlineSaveReady
+    ) {
+
+        return;
+
+    }
+
+
+    try {
+
+        const {
+            error
+        } =
+            await supabaseClient
+                .from("game_saves")
+                .upsert(
+
+                    {
+
+                        user_id:
+                            currentUser.id,
+
+                        username:
+                            state.username,
+
+                        save_data:
+                            state,
+
+                        updated_at:
+                            new Date()
+                                .toISOString()
+
+                    },
+
+                    {
+
+                        onConflict:
+                            "user_id"
+
+                    }
+
+                );
+
+
+        if (error) {
+
+            console.error(
+                "Online save error:",
+                error
+            );
+
+            return;
+
+        }
+
+
+        console.log(
+            "Online save complete."
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Online save failed:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   ONLINE LOAD
+========================================================= */
+
+async function loadOnline() {
+
+    if (!currentUser)
+        return;
+
+
+    try {
+
+        const {
+            data,
+            error
+        } =
+            await supabaseClient
+                .from("game_saves")
+                .select(
+                    "username, save_data"
+                )
+                .eq(
+                    "user_id",
+                    currentUser.id
+                )
+                .maybeSingle();
+
+
+        if (error) {
+
+            console.error(
+                "Online load error:",
+                error
+            );
+
+            return;
+
+        }
+
+
+        if (
+            data &&
+            data.save_data
+        ) {
+
+            state =
+                mergeState(
+                    createFreshState(),
+                    data.save_data
+                );
+
+
+            if (
+                data.username
+            ) {
+
+                state.username =
+                    data.username;
+
+            }
+
+
+            saveLocal();
+
+        }
+
+        else {
+
+            /*
+                First login on this account:
+                upload whatever local progress
+                currently exists.
+            */
+
+            await saveOnline();
+
+        }
+
+
+        onlineSaveReady =
+            true;
+
+
+        renderAll();
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Online load failed:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   AUTH MODE
+========================================================= */
+
+function updateAuthMode() {
+
+    if (
+        authMode === "signin"
+    ) {
+
+        $("accountTitle")
+            .textContent =
+            "Sign in";
+
+        $("accountDescription")
+            .textContent =
+            "Sign in to load your saved progress.";
+
+        $("authButton")
+            .textContent =
+            "Sign In";
+
+        $("switchAuthMode")
+            .textContent =
+            "Need an account? Sign up";
+
+        $("passwordInput")
+            .autocomplete =
+            "current-password";
+
+    }
+
+    else {
+
+        $("accountTitle")
+            .textContent =
+            "Create account";
+
+        $("accountDescription")
+            .textContent =
+            "Create an account to save your progress across devices.";
+
+        $("authButton")
+            .textContent =
+            "Create Account";
+
+        $("switchAuthMode")
+            .textContent =
+            "Already have an account? Sign in";
+
+        $("passwordInput")
+            .autocomplete =
+            "new-password";
+
+    }
+
+}
+
+
+function showAuthMessage(
+    message
+) {
+
+    $("authMessage")
+        .textContent =
+        message;
+
+}
+
+
+function openAccount() {
+
+    if (currentUser) {
+
+        $("loggedOutPanel")
+            .classList
+            .add("hidden");
+
+        $("loggedInPanel")
+            .classList
+            .remove("hidden");
+
+        $("accountTitle")
+            .textContent =
+            "Your Account";
+
+        $("accountDescription")
+            .textContent =
+            "Your progress is synchronized online.";
+
+        $("loggedInEmail")
+            .textContent =
+            currentUser.email || "";
+
+    }
+
+    else {
+
+        $("loggedOutPanel")
+            .classList
+            .remove("hidden");
+
+        $("loggedInPanel")
+            .classList
+            .add("hidden");
+
+        updateAuthMode();
+
+    }
+
+
+    showAuthMessage("");
+
+    $("accountDialog")
+        .showModal();
+
+}
+
+
+/* =========================================================
+   SIGN UP / SIGN IN
+========================================================= */
+
+async function authenticate() {
+
+    const email =
+        $("emailInput")
             .value
             .trim();
 
+    const password =
+        $("passwordInput")
+            .value;
 
-    if (!username) {
 
-        alert(
-            "Enter a username."
+    if (!email) {
+
+        showAuthMessage(
+            "Enter an email address."
         );
 
         return;
@@ -2078,24 +2705,216 @@ function saveAccount() {
     }
 
 
-    state.username =
-        username;
+    if (
+        password.length < 6
+    ) {
+
+        showAuthMessage(
+            "Password must be at least 6 characters."
+        );
+
+        return;
+
+    }
 
 
-    saveState();
+    $("authButton")
+        .disabled = true;
 
-    renderAccount();
 
-    $("accountDialog")
-        .close();
+    showAuthMessage(
+        authMode === "signin"
+            ? "Signing in..."
+            : "Creating account..."
+    );
+
+
+    try {
+
+        if (
+            authMode ===
+            "signup"
+        ) {
+
+            const username =
+                $("usernameInput")
+                    .value
+                    .trim();
+
+
+            if (!username) {
+
+                showAuthMessage(
+                    "Choose a username."
+                );
+
+                $("authButton")
+                    .disabled =
+                    false;
+
+                return;
+
+            }
+
+
+            const {
+                data,
+                error
+            } =
+                await supabaseClient
+                    .auth
+                    .signUp({
+
+                        email,
+
+                        password,
+
+                        options: {
+
+                            data: {
+
+                                username
+
+                            }
+
+                        }
+
+                    });
+
+
+            if (error)
+                throw error;
+
+
+            if (
+                data.session
+            ) {
+
+                state.username =
+                    username;
+
+                saveLocal();
+
+                showAuthMessage(
+                    "Account created! Loading your save..."
+                );
+
+            }
+
+            else {
+
+                showAuthMessage(
+                    "Account created. Check your email to confirm it, then sign in."
+                );
+
+            }
+
+        }
+
+        else {
+
+            const {
+                data,
+                error
+            } =
+                await supabaseClient
+                    .auth
+                    .signInWithPassword({
+
+                        email,
+
+                        password
+
+                    });
+
+
+            if (error)
+                throw error;
+
+
+            if (
+                data.user
+            ) {
+
+                showAuthMessage(
+                    "Signed in! Loading your save..."
+                );
+
+            }
+
+        }
+
+    }
+
+    catch (error) {
+
+        console.error(
+            error
+        );
+
+        showAuthMessage(
+            error.message ||
+            "Authentication failed."
+        );
+
+    }
+
+
+    $("authButton")
+        .disabled = false;
 
 }
 
 
-function continueGuest() {
+/* =========================================================
+   SIGN OUT
+========================================================= */
 
-    $("accountDialog")
-        .close();
+async function signOut() {
+
+    try {
+
+        await saveOnline();
+
+        const {
+            error
+        } =
+            await supabaseClient
+                .auth
+                .signOut();
+
+
+        if (error)
+            throw error;
+
+
+        currentUser =
+            null;
+
+        onlineSaveReady =
+            false;
+
+
+        renderAccount();
+
+
+        $("accountDialog")
+            .close();
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Sign out error:",
+            error
+        );
+
+        showAuthMessage(
+            "Could not sign out."
+        );
+
+    }
 
 }
 
@@ -2104,7 +2923,7 @@ function continueGuest() {
    RESET
 ========================================================= */
 
-function resetStats() {
+async function resetStats() {
 
     if (
         !confirm(
@@ -2121,157 +2940,119 @@ function resetStats() {
         state.username;
 
 
-    state = {
-
-        username,
-
-        totalEp: 0,
-
-        totalRolls: 0,
-
-        bestEp: 0,
-
-        bestNumber: null,
-
-        mythics: 0,
-
-        anomalies: 0,
-
-        epics: 0,
-
-        rarityCounts: {},
-
-        foundBadges: {},
-
-        history: [],
-
-        rarityHistory: {
-
-            ANOMALY: [],
-
-            MYTHIC: []
-
-        },
-
-        milestones: []
-
-    };
+    state =
+        createFreshState();
 
 
-    for (
-        const rarity of RARITIES
-    ) {
-
-        state.rarityCounts[
-            rarity.name
-        ] = 0;
-
-    }
+    state.username =
+        username;
 
 
-    saveState();
+    saveLocal();
 
     renderAll();
+
+
+    if (
+        currentUser
+    ) {
+
+        await saveOnline();
+
+    }
 
 }
 
 
 /* =========================================================
-   STORAGE
+   INITIAL AUTH
 ========================================================= */
 
-function saveState() {
+async function initializeAuth() {
 
-    localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(state)
-    );
+    const {
+        data,
+        error
+    } =
+        await supabaseClient
+            .auth
+            .getSession();
+
+
+    if (error) {
+
+        console.error(
+            "Session error:",
+            error
+        );
+
+        return;
+
+    }
+
+
+    if (
+        data.session
+    ) {
+
+        currentUser =
+            data.session.user;
+
+        await loadOnline();
+
+    }
 
 }
 
 
-function loadState() {
+/* =========================================================
+   AUTH STATE LISTENER
+========================================================= */
 
-    try {
-
-        const saved =
-            localStorage.getItem(
-                STORAGE_KEY
-            );
-
-
-        if (!saved)
-            return;
-
-
-        const parsed =
-            JSON.parse(saved);
-
-
-        state = {
-            ...state,
-            ...parsed
-        };
-
-
-        for (
-            const rarity of RARITIES
-        ) {
+supabaseClient
+    .auth
+    .onAuthStateChange(
+        async (
+            event,
+            session
+        ) => {
 
             if (
-                typeof state
-                    .rarityCounts[
-                        rarity.name
-                    ] !==
-                    "number"
+                session &&
+                session.user
             ) {
 
-                state.rarityCounts[
-                    rarity.name
-                ] = 0;
+                currentUser =
+                    session.user;
+
+
+                if (
+                    !onlineSaveReady
+                ) {
+
+                    await loadOnline();
+
+                }
+
+
+                renderAccount();
+
+            }
+
+            else {
+
+                currentUser =
+                    null;
+
+                onlineSaveReady =
+                    false;
+
+                renderAccount();
 
             }
 
         }
-
-
-        if (
-            !state.rarityHistory
-        ) {
-
-            state.rarityHistory = {
-
-                ANOMALY: [],
-
-                MYTHIC: []
-
-            };
-
-        }
-
-    }
-
-    catch {
-
-        console.log(
-            "Could not load save."
-        );
-
-    }
-
-}
-
-
-/* =========================================================
-   FORMAT
-========================================================= */
-
-function formatNumber(n) {
-
-    return Number(n || 0)
-        .toLocaleString();
-
-}
+    );
 
 
 /* =========================================================
@@ -2303,23 +3084,56 @@ $("closeAccount")
     .addEventListener(
         "click",
         () => {
+
             $("accountDialog")
                 .close();
+
         }
-    );
-
-
-$("saveAccount")
-    .addEventListener(
-        "click",
-        saveAccount
     );
 
 
 $("continueGuest")
     .addEventListener(
         "click",
-        continueGuest
+        () => {
+
+            $("accountDialog")
+                .close();
+
+        }
+    );
+
+
+$("switchAuthMode")
+    .addEventListener(
+        "click",
+        () => {
+
+            authMode =
+                authMode === "signin"
+                    ? "signup"
+                    : "signin";
+
+
+            updateAuthMode();
+
+            showAuthMessage("");
+
+        }
+    );
+
+
+$("authButton")
+    .addEventListener(
+        "click",
+        authenticate
+    );
+
+
+$("signOutButton")
+    .addEventListener(
+        "click",
+        signOut
     );
 
 
@@ -2330,9 +3144,11 @@ $("clearHistoryButton")
 
             state.history = [];
 
-            saveState();
+            saveLocal();
 
             renderHistory();
+
+            queueOnlineSave();
 
         }
     );
@@ -2342,9 +3158,11 @@ $("anomalyStat")
     .addEventListener(
         "click",
         () => {
+
             showRarityHistory(
                 "ANOMALY"
             );
+
         }
     );
 
@@ -2353,9 +3171,11 @@ $("mythicStat")
     .addEventListener(
         "click",
         () => {
+
             showRarityHistory(
                 "MYTHIC"
             );
+
         }
     );
 
@@ -2368,13 +3188,17 @@ document.addEventListener(
             event.code === "Space" &&
             !event.repeat &&
             document.activeElement.tagName !==
-                "INPUT"
+                "INPUT" &&
+            document.activeElement.tagName !==
+                "TEXTAREA"
         ) {
 
             event.preventDefault();
 
+
             if (
-                !$("rollButton").disabled
+                !$("rollButton")
+                    .disabled
             ) {
 
                 roll();
@@ -2391,4 +3215,8 @@ document.addEventListener(
    START
 ========================================================= */
 
+loadLocal();
+
 renderAll();
+
+initializeAuth();
