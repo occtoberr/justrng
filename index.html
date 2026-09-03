@@ -5,419 +5,332 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>RNG Vault</title>
+    <meta
+        name="description"
+        content="RNG Vault — an original offline random number simulator with badges, EP, milestones and rare-number hunting."
+    >
 
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="./style.css">
 
-    <!-- Supabase browser client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script defer src="./script.js"></script>
 </head>
 
 <body>
 
 <header class="topbar">
-
     <div class="brand">
-        <span class="brand-icon">✦</span>
+        <span class="brand-symbol">✦</span>
         <span>RNG Vault</span>
     </div>
 
     <div class="account-area">
-        <span id="accountStatus">Guest</span>
-        <button id="accountButton">Account</button>
+        <span id="accountName">Guest</span>
+        <button id="accountBtn" class="secondary-btn">Account</button>
     </div>
-
 </header>
 
-
-<main class="container">
+<main>
 
     <section class="hero">
+        <div class="eyebrow">RANDOM NUMBER SIMULATOR</div>
 
-        <div class="hero-content">
+        <h1>How lucky are you?</h1>
 
-            <p class="eyebrow">RANDOM NUMBER SIMULATOR</p>
-
-            <h1>How lucky are you?</h1>
-
-            <p class="subtitle">
-                Roll numbers, discover badges, earn EP and hunt for
-                ridiculously rare numbers.
-            </p>
-
-        </div>
+        <p class="hero-text">
+            Roll numbers, discover badges, earn EP and hunt for
+            ridiculously rare numbers.
+        </p>
 
         <div class="controls">
 
-            <div class="range-controls">
-
-                <label>
-                    Minimum
-
-                    <input
-                        id="minNumber"
-                        type="number"
-                        min="0"
-                        max="1000000"
-                        value="0"
-                    >
-                </label>
-
-                <label>
-                    Maximum
-
-                    <input
-                        id="maxNumber"
-                        type="number"
-                        min="0"
-                        max="1000000"
-                        value="1000000"
-                    >
-                </label>
-
+            <div class="input-group">
+                <label for="minNumber">Minimum</label>
+                <input
+                    id="minNumber"
+                    type="number"
+                    min="0"
+                    max="1000000"
+                    value="0"
+                >
             </div>
 
-
-            <div class="button-row">
-
-                <button
-                    id="rollButton"
-                    class="roll-button"
+            <div class="input-group">
+                <label for="maxNumber">Maximum</label>
+                <input
+                    id="maxNumber"
+                    type="number"
+                    min="0"
+                    max="1000000"
+                    value="1000000"
                 >
-                    ROLL
-                </button>
-
-                <button
-                    id="resetButton"
-                    class="secondary-button"
-                >
-                    Reset Stats
-                </button>
-
             </div>
 
+            <button id="rollBtn" class="roll-btn">
+                ROLL
+            </button>
 
-            <p class="keyboard-hint">
-                Press <kbd>SPACE</kbd> to roll
-            </p>
+            <button id="autoBtn" class="secondary-btn">
+                AUTO ROLL: OFF
+            </button>
+
+            <select id="autoSpeed" class="speed-select">
+                <option value="250">4 rolls / sec</option>
+                <option value="500" selected>2 rolls / sec</option>
+                <option value="1000">1 roll / sec</option>
+                <option value="2000">1 roll / 2 sec</option>
+            </select>
+
+            <button id="resetBtn" class="danger-btn">
+                Reset Stats
+            </button>
 
         </div>
 
+        <div class="space-hint">
+            Press <kbd>SPACE</kbd> to roll
+        </div>
     </section>
 
 
-    <!-- RESULT -->
-
-    <section class="result-card">
+    <section id="resultCard" class="result-card">
 
         <div class="result-label">
             LATEST ROLL
         </div>
 
-        <div
-            id="resultNumber"
-            class="result-number"
-        >
+        <div id="latestNumber" class="latest-number">
             —
         </div>
 
-        <div
-            id="resultRarity"
-            class="result-rarity"
-        >
+        <div id="latestRarity" class="latest-rarity">
             READY
         </div>
 
-        <div
-            id="resultEp"
-            class="result-ep"
-        >
+        <div id="latestEP" class="latest-ep">
             0 EP
         </div>
 
-        <div
-            id="resultEffect"
-            class="result-effect"
-        >
+        <div id="latestEffect" class="latest-effect">
             Roll to begin
         </div>
 
     </section>
 
 
-    <!-- STATS -->
-
     <section class="stats-grid">
 
         <div class="stat-card">
-            <span>Total EP</span>
+            <span class="stat-label">Total EP</span>
             <strong id="totalEp">0</strong>
         </div>
 
         <div class="stat-card">
-            <span>Total Rolls</span>
+            <span class="stat-label">Total Rolls</span>
             <strong id="totalRolls">0</strong>
         </div>
 
         <div class="stat-card">
-            <span>Best EP</span>
+            <span class="stat-label">Best EP</span>
             <strong id="bestEp">0</strong>
         </div>
 
         <div class="stat-card">
-            <span>Best Number</span>
+            <span class="stat-label">Best Number</span>
             <strong id="bestNumber">—</strong>
         </div>
 
-        <div
-            class="stat-card clickable-stat"
-            id="anomalyStat"
-        >
-            <span>Anomalies</span>
+        <button id="anomalyStat" class="stat-card clickable-stat">
+            <span class="stat-label">Anomalies</span>
             <strong id="anomalies">0</strong>
             <small>Click to view</small>
-        </div>
+        </button>
 
-        <div
-            class="stat-card clickable-stat"
-            id="mythicStat"
-        >
-            <span>Mythics</span>
+        <button id="mythicStat" class="stat-card clickable-stat">
+            <span class="stat-label">Mythics</span>
             <strong id="mythics">0</strong>
             <small>Click to view</small>
-        </div>
+        </button>
 
         <div class="stat-card">
-            <span>Badges Found</span>
+            <span class="stat-label">Badges Found</span>
             <strong id="badgesFound">0/0</strong>
         </div>
 
     </section>
 
 
-    <!-- RARITIES -->
-
     <section class="section">
 
-        <div class="section-header">
-
+        <div class="section-heading">
             <div>
-                <p class="eyebrow">COLLECTION</p>
+                <span class="section-kicker">COLLECTION</span>
                 <h2>Rarities</h2>
             </div>
-
         </div>
 
-        <div
-            id="rarityCollection"
-            class="rarity-grid"
-        ></div>
+        <div id="rarityGrid" class="rarity-grid"></div>
 
     </section>
 
 
-    <!-- BADGES -->
-
     <section class="section">
 
-        <div class="section-header">
-
+        <div class="section-heading">
             <div>
-                <p class="eyebrow">ACHIEVEMENTS</p>
+                <span class="section-kicker">ACHIEVEMENTS</span>
                 <h2>Badges</h2>
             </div>
 
+            <span id="badgeCount" class="section-count">
+                0/0
+            </span>
         </div>
 
-        <div
-            id="badgeCollection"
-            class="badge-grid"
-        ></div>
+        <div id="badgeGrid" class="badge-grid"></div>
 
     </section>
 
 
-    <!-- MILESTONES -->
-
     <section class="section">
 
-        <div class="section-header">
-
+        <div class="section-heading">
             <div>
-                <p class="eyebrow">PROGRESSION</p>
+                <span class="section-kicker">PROGRESSION</span>
                 <h2>Milestones</h2>
             </div>
-
         </div>
 
-        <div
-            id="milestoneCollection"
-            class="milestone-grid"
-        ></div>
+        <div id="milestoneGrid" class="milestone-grid"></div>
 
     </section>
 
 
-    <!-- HISTORY -->
-
     <section class="section">
 
-        <div class="section-header">
-
+        <div class="section-heading">
             <div>
-                <p class="eyebrow">HISTORY</p>
+                <span class="section-kicker">HISTORY</span>
                 <h2>Recent Rolls</h2>
             </div>
 
-            <button
-                id="clearHistoryButton"
-                class="secondary-button"
-            >
+            <button id="clearHistoryBtn" class="small-btn">
                 Clear
             </button>
-
         </div>
 
-        <div
-            id="history"
-            class="history-list"
-        ></div>
+        <div id="historyList" class="history-list"></div>
 
     </section>
 
 </main>
 
 
-<!-- ACCOUNT -->
+<!-- ACCOUNT MODAL -->
 
-<dialog id="accountDialog">
+<dialog id="accountDialog" class="dialog">
 
-    <div class="dialog-content">
+    <div class="dialog-inner">
 
-        <button
-            id="closeAccount"
-            class="dialog-close"
-        >
+        <button id="closeAccountBtn" class="dialog-close">
             ×
         </button>
 
-        <p class="eyebrow">ONLINE ACCOUNT</p>
+        <span class="section-kicker">ACCOUNT</span>
 
-        <h2 id="accountTitle">
-            Sign in
-        </h2>
+        <h2>Cloud Progress</h2>
 
-        <p
-            id="accountDescription"
-            class="dialog-description"
-        >
-            Create an account to save your progress across devices.
+        <p class="dialog-text">
+            Create an account to move your RNG Vault progress between devices.
         </p>
 
+        <label for="accountNameInput">
+            Username
+        </label>
 
-        <div id="loggedOutPanel">
-
-            <label>
-                Username
-
-                <input
-                    id="usernameInput"
-                    type="text"
-                    maxlength="20"
-                    placeholder="Your username"
-                >
-            </label>
-
-
-            <label>
-                Email
-
-                <input
-                    id="emailInput"
-                    type="email"
-                    placeholder="you@example.com"
-                    autocomplete="email"
-                >
-            </label>
-
-
-            <label>
-                Password
-
-                <input
-                    id="passwordInput"
-                    type="password"
-                    placeholder="At least 6 characters"
-                    autocomplete="current-password"
-                >
-            </label>
-
-
-            <div class="auth-switch">
-
-                <button
-                    id="switchAuthMode"
-                    class="text-button"
-                >
-                    Need an account? Sign up
-                </button>
-
-            </div>
-
-
-            <div class="dialog-buttons">
-
-                <button
-                    id="authButton"
-                    class="roll-button"
-                >
-                    Sign In
-                </button>
-
-                <button
-                    id="continueGuest"
-                    class="secondary-button"
-                >
-                    Continue as Guest
-                </button>
-
-            </div>
-
-        </div>
-
-
-        <div
-            id="loggedInPanel"
-            class="hidden"
+        <input
+            id="accountNameInput"
+            type="text"
+            maxlength="24"
+            placeholder="Your username"
         >
 
-            <div class="online-status">
-                <span class="online-dot"></span>
-                <span>Online save active</span>
-            </div>
+        <label for="emailInput">
+            Email
+        </label>
 
-            <p id="loggedInEmail"></p>
+        <input
+            id="emailInput"
+            type="email"
+            placeholder="you@example.com"
+            autocomplete="email"
+        >
 
-            <button
-                id="signOutButton"
-                class="secondary-button full-button"
-            >
+        <label for="passwordInput">
+            Password
+        </label>
+
+        <input
+            id="passwordInput"
+            type="password"
+            minlength="6"
+            placeholder="At least 6 characters"
+            autocomplete="current-password"
+        >
+
+        <div class="account-buttons">
+
+            <button id="signInBtn" class="primary-btn">
+                Sign In
+            </button>
+
+            <button id="signUpBtn" class="secondary-btn">
+                Create Account
+            </button>
+
+            <button id="signOutBtn" class="danger-btn">
                 Sign Out
             </button>
 
         </div>
 
+        <button id="guestBtn" class="guest-btn">
+            Continue as Guest
+        </button>
 
-        <p
-            id="authMessage"
-            class="auth-message"
-        ></p>
+        <p id="authStatus" class="auth-status">
+            Guest mode active.
+        </p>
+
+        <p id="cloudNote" class="cloud-note"></p>
 
     </div>
 
 </dialog>
 
 
-<script src="script.js"></script>
+<!-- ANOMALY / MYTHIC MODAL -->
+
+<dialog id="detailsDialog" class="dialog">
+
+    <div class="dialog-inner details-inner">
+
+        <button id="closeDetailsBtn" class="dialog-close">
+            ×
+        </button>
+
+        <h2 id="detailsTitle">
+            Rare Rolls
+        </h2>
+
+        <div id="detailsBody" class="details-body"></div>
+
+    </div>
+
+</dialog>
+
+
+<div id="toastContainer" class="toast-container"></div>
 
 </body>
 </html>
