@@ -7,6 +7,9 @@
     <title>RNG Vault</title>
 
     <link rel="stylesheet" href="style.css">
+
+    <!-- Supabase browser client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
@@ -49,6 +52,7 @@
 
                 <label>
                     Minimum
+
                     <input
                         id="minNumber"
                         type="number"
@@ -60,6 +64,7 @@
 
                 <label>
                     Maximum
+
                     <input
                         id="maxNumber"
                         type="number"
@@ -71,17 +76,25 @@
 
             </div>
 
+
             <div class="button-row">
 
-                <button id="rollButton" class="roll-button">
+                <button
+                    id="rollButton"
+                    class="roll-button"
+                >
                     ROLL
                 </button>
 
-                <button id="resetButton" class="secondary-button">
+                <button
+                    id="resetButton"
+                    class="secondary-button"
+                >
                     Reset Stats
                 </button>
 
             </div>
+
 
             <p class="keyboard-hint">
                 Press <kbd>SPACE</kbd> to roll
@@ -100,19 +113,31 @@
             LATEST ROLL
         </div>
 
-        <div id="resultNumber" class="result-number">
+        <div
+            id="resultNumber"
+            class="result-number"
+        >
             —
         </div>
 
-        <div id="resultRarity" class="result-rarity">
+        <div
+            id="resultRarity"
+            class="result-rarity"
+        >
             READY
         </div>
 
-        <div id="resultEp" class="result-ep">
+        <div
+            id="resultEp"
+            class="result-ep"
+        >
             0 EP
         </div>
 
-        <div id="resultEffect" class="result-effect">
+        <div
+            id="resultEffect"
+            class="result-effect"
+        >
             Roll to begin
         </div>
 
@@ -124,93 +149,46 @@
     <section class="stats-grid">
 
         <div class="stat-card">
-
             <span>Total EP</span>
-
-            <strong id="totalEp">
-                0
-            </strong>
-
+            <strong id="totalEp">0</strong>
         </div>
 
-
         <div class="stat-card">
-
             <span>Total Rolls</span>
-
-            <strong id="totalRolls">
-                0
-            </strong>
-
+            <strong id="totalRolls">0</strong>
         </div>
 
-
         <div class="stat-card">
-
             <span>Best EP</span>
-
-            <strong id="bestEp">
-                0
-            </strong>
-
+            <strong id="bestEp">0</strong>
         </div>
-
 
         <div class="stat-card">
-
             <span>Best Number</span>
-
-            <strong id="bestNumber">
-                —
-            </strong>
-
+            <strong id="bestNumber">—</strong>
         </div>
-
 
         <div
             class="stat-card clickable-stat"
             id="anomalyStat"
         >
-
             <span>Anomalies</span>
-
-            <strong id="anomalies">
-                0
-            </strong>
-
-            <small>
-                Click to view
-            </small>
-
+            <strong id="anomalies">0</strong>
+            <small>Click to view</small>
         </div>
-
 
         <div
             class="stat-card clickable-stat"
             id="mythicStat"
         >
-
             <span>Mythics</span>
-
-            <strong id="mythics">
-                0
-            </strong>
-
-            <small>
-                Click to view
-            </small>
-
+            <strong id="mythics">0</strong>
+            <small>Click to view</small>
         </div>
 
-
         <div class="stat-card">
-
             <span>Badges Found</span>
-
-            <strong id="badgesFound">
-                0/0
-            </strong>
-
+            <strong id="badgesFound">0/0</strong>
         </div>
 
     </section>
@@ -229,7 +207,10 @@
 
         </div>
 
-        <div id="rarityCollection" class="rarity-grid"></div>
+        <div
+            id="rarityCollection"
+            class="rarity-grid"
+        ></div>
 
     </section>
 
@@ -247,7 +228,10 @@
 
         </div>
 
-        <div id="badgeCollection" class="badge-grid"></div>
+        <div
+            id="badgeCollection"
+            class="badge-grid"
+        ></div>
 
     </section>
 
@@ -265,7 +249,10 @@
 
         </div>
 
-        <div id="milestoneCollection" class="milestone-grid"></div>
+        <div
+            id="milestoneCollection"
+            class="milestone-grid"
+        ></div>
 
     </section>
 
@@ -290,14 +277,17 @@
 
         </div>
 
-        <div id="history" class="history-list"></div>
+        <div
+            id="history"
+            class="history-list"
+        ></div>
 
     </section>
 
 </main>
 
 
-<!-- ACCOUNT MODAL -->
+<!-- ACCOUNT -->
 
 <dialog id="accountDialog">
 
@@ -310,43 +300,117 @@
             ×
         </button>
 
-        <p class="eyebrow">PROFILE</p>
+        <p class="eyebrow">ONLINE ACCOUNT</p>
 
-        <h2>Your Account</h2>
+        <h2 id="accountTitle">
+            Sign in
+        </h2>
 
-        <p class="dialog-description">
-            This local profile saves your progress in this browser.
+        <p
+            id="accountDescription"
+            class="dialog-description"
+        >
+            Create an account to save your progress across devices.
         </p>
 
-        <label>
-            Username
 
-            <input
-                id="usernameInput"
-                type="text"
-                maxlength="20"
-                placeholder="Your username"
-            >
+        <div id="loggedOutPanel">
 
-        </label>
+            <label>
+                Username
 
-        <div class="dialog-buttons">
+                <input
+                    id="usernameInput"
+                    type="text"
+                    maxlength="20"
+                    placeholder="Your username"
+                >
+            </label>
+
+
+            <label>
+                Email
+
+                <input
+                    id="emailInput"
+                    type="email"
+                    placeholder="you@example.com"
+                    autocomplete="email"
+                >
+            </label>
+
+
+            <label>
+                Password
+
+                <input
+                    id="passwordInput"
+                    type="password"
+                    placeholder="At least 6 characters"
+                    autocomplete="current-password"
+                >
+            </label>
+
+
+            <div class="auth-switch">
+
+                <button
+                    id="switchAuthMode"
+                    class="text-button"
+                >
+                    Need an account? Sign up
+                </button>
+
+            </div>
+
+
+            <div class="dialog-buttons">
+
+                <button
+                    id="authButton"
+                    class="roll-button"
+                >
+                    Sign In
+                </button>
+
+                <button
+                    id="continueGuest"
+                    class="secondary-button"
+                >
+                    Continue as Guest
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <div
+            id="loggedInPanel"
+            class="hidden"
+        >
+
+            <div class="online-status">
+                <span class="online-dot"></span>
+                <span>Online save active</span>
+            </div>
+
+            <p id="loggedInEmail"></p>
 
             <button
-                id="saveAccount"
-                class="roll-button"
+                id="signOutButton"
+                class="secondary-button full-button"
             >
-                Save Profile
-            </button>
-
-            <button
-                id="continueGuest"
-                class="secondary-button"
-            >
-                Continue as Guest
+                Sign Out
             </button>
 
         </div>
+
+
+        <p
+            id="authMessage"
+            class="auth-message"
+        ></p>
 
     </div>
 
