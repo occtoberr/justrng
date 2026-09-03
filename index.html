@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RNG Vault</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="brand">🎲 RNG Vault</div>
+      <div class="tagline">Infinite random-number collecting</div>
+    </div>
+
+    <div class="account-area">
+      <span id="accountStatus">Guest</span>
+      <button id="authButton" class="small-btn">Account</button>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <section class="card hero">
+      <div class="controls">
+        <label>
+          Minimum
+          <input id="minNumber" type="number" value="0" min="0" max="1000000">
+        </label>
+
+        <label>
+          Maximum
+          <input id="maxNumber" type="number" value="1000000" min="0" max="1000000">
+        </label>
+
+        <button id="clearButton" class="secondary">Reset Stats</button>
+      </div>
+
+      <button id="rollButton" class="roll-button">🎲 ROLL</button>
+
+      <div class="result">
+        <div id="resultNumber" class="result-number">—</div>
+        <div id="resultRarity" class="rarity ready">READY</div>
+        <div id="resultEp" class="result-ep">0 EP</div>
+        <div id="resultEffect" class="effect hidden"></div>
+      </div>
+    </section>
+
+    <section class="stats-grid">
+      <div class="stat card">
+        <span>Total EP</span>
+        <strong id="totalEp">0</strong>
+      </div>
+
+      <div class="stat card">
+        <span>Total Rolls</span>
+        <strong id="totalRolls">0</strong>
+      </div>
+
+      <div class="stat card">
+        <span>Best EP</span>
+        <strong id="bestEp">0</strong>
+      </div>
+
+      <div class="stat card">
+        <span>Best Number</span>
+        <strong id="bestNumber">—</strong>
+      </div>
+
+      <div class="stat card">
+        <span>Mythics</span>
+        <strong id="mythicCount">0</strong>
+      </div>
+
+      <div class="stat card">
+        <span>Badges Found</span>
+        <strong id="badgesFound">0</strong>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>🏆 Rarity Collection</h2>
+      <div id="rarityStats" class="rarity-stats"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-heading">
+        <h2>🏅 Badges</h2>
+        <span id="badgeCountLabel">0 / 50</span>
+      </div>
+
+      <div id="badgeCollection" class="badge-grid"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-heading">
+        <h2>📜 Recent Rolls</h2>
+        <button id="clearHistoryButton" class="small-btn">Clear</button>
+      </div>
+
+      <div id="history" class="history"></div>
+    </section>
+
+  </main>
+
+  <dialog id="authDialog">
+    <form method="dialog" id="authForm" class="auth-box">
+      <button type="button" id="closeAuth" class="dialog-close">×</button>
+
+      <h2>👤 Account</h2>
+
+      <p class="muted">
+        Your profile is currently saved locally in this browser.
+        Cloud accounts can be connected later.
+      </p>
+
+      <label>
+        Username
+        <input
+          id="usernameInput"
+          maxlength="24"
+          autocomplete="username"
+          placeholder="Your name"
+        >
+      </label>
+
+      <div class="auth-actions">
+        <button type="submit" class="roll-button">
+          Save Account
+        </button>
+
+        <button type="button" id="guestButton" class="secondary">
+          Continue as Guest
+        </button>
+      </div>
+
+      <p id="authMessage" class="muted"></p>
+    </form>
+  </dialog>
+
+  <script src="script.js"></script>
+</body>
+</html>
