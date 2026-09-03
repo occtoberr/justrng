@@ -1,1176 +1,423 @@
-:root {
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    --bg: #080a12;
+    <title>RNG Vault</title>
 
-    --card: #10131f;
+    <link rel="stylesheet" href="style.css">
 
-    --card2: #151927;
+    <!-- Supabase browser client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
 
-    --border: #262c3d;
+<body>
 
-    --text: #f4f6ff;
+<header class="topbar">
 
-    --muted: #8d94a8;
+    <div class="brand">
+        <span class="brand-icon">✦</span>
+        <span>RNG Vault</span>
+    </div>
 
-    --accent: #8b7cff;
+    <div class="account-area">
+        <span id="accountStatus">Guest</span>
+        <button id="accountButton">Account</button>
+    </div>
 
-    --accent2: #b49cff;
+</header>
 
-}
 
+<main class="container">
 
-* {
-    box-sizing: border-box;
-}
+    <section class="hero">
 
+        <div class="hero-content">
 
-html {
-    scroll-behavior: smooth;
-}
+            <p class="eyebrow">RANDOM NUMBER SIMULATOR</p>
 
+            <h1>How lucky are you?</h1>
 
-body {
+            <p class="subtitle">
+                Roll numbers, discover badges, earn EP and hunt for
+                ridiculously rare numbers.
+            </p>
 
-    margin: 0;
+        </div>
 
-    min-height: 100vh;
+        <div class="controls">
 
-    background:
-        radial-gradient(
-            circle at top,
-            #17152b 0%,
-            var(--bg) 45%
-        );
+            <div class="range-controls">
 
-    color: var(--text);
+                <label>
+                    Minimum
 
-    font-family:
-        Inter,
-        system-ui,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        sans-serif;
-}
+                    <input
+                        id="minNumber"
+                        type="number"
+                        min="0"
+                        max="1000000"
+                        value="0"
+                    >
+                </label>
 
+                <label>
+                    Maximum
 
-button,
-input {
-    font: inherit;
-}
+                    <input
+                        id="maxNumber"
+                        type="number"
+                        min="0"
+                        max="1000000"
+                        value="1000000"
+                    >
+                </label>
 
+            </div>
 
-button {
-    cursor: pointer;
-}
 
+            <div class="button-row">
 
-.topbar {
+                <button
+                    id="rollButton"
+                    class="roll-button"
+                >
+                    ROLL
+                </button>
 
-    height: 70px;
+                <button
+                    id="resetButton"
+                    class="secondary-button"
+                >
+                    Reset Stats
+                </button>
 
-    padding: 0 30px;
+            </div>
 
-    display: flex;
 
-    align-items: center;
+            <p class="keyboard-hint">
+                Press <kbd>SPACE</kbd> to roll
+            </p>
 
-    justify-content: space-between;
+        </div>
 
-    border-bottom: 1px solid var(--border);
+    </section>
 
-    background: rgba(8, 10, 18, .85);
 
-    backdrop-filter: blur(12px);
+    <!-- RESULT -->
 
-    position: sticky;
+    <section class="result-card">
 
-    top: 0;
+        <div class="result-label">
+            LATEST ROLL
+        </div>
 
-    z-index: 50;
-}
+        <div
+            id="resultNumber"
+            class="result-number"
+        >
+            —
+        </div>
 
+        <div
+            id="resultRarity"
+            class="result-rarity"
+        >
+            READY
+        </div>
 
-.brand {
+        <div
+            id="resultEp"
+            class="result-ep"
+        >
+            0 EP
+        </div>
 
-    display: flex;
+        <div
+            id="resultEffect"
+            class="result-effect"
+        >
+            Roll to begin
+        </div>
 
-    align-items: center;
+    </section>
 
-    gap: 10px;
 
-    font-size: 20px;
+    <!-- STATS -->
 
-    font-weight: 800;
-}
+    <section class="stats-grid">
 
+        <div class="stat-card">
+            <span>Total EP</span>
+            <strong id="totalEp">0</strong>
+        </div>
 
-.brand-icon {
+        <div class="stat-card">
+            <span>Total Rolls</span>
+            <strong id="totalRolls">0</strong>
+        </div>
 
-    color: var(--accent);
+        <div class="stat-card">
+            <span>Best EP</span>
+            <strong id="bestEp">0</strong>
+        </div>
 
-    font-size: 25px;
-}
+        <div class="stat-card">
+            <span>Best Number</span>
+            <strong id="bestNumber">—</strong>
+        </div>
 
+        <div
+            class="stat-card clickable-stat"
+            id="anomalyStat"
+        >
+            <span>Anomalies</span>
+            <strong id="anomalies">0</strong>
+            <small>Click to view</small>
+        </div>
 
-.account-area {
+        <div
+            class="stat-card clickable-stat"
+            id="mythicStat"
+        >
+            <span>Mythics</span>
+            <strong id="mythics">0</strong>
+            <small>Click to view</small>
+        </div>
 
-    display: flex;
+        <div class="stat-card">
+            <span>Badges Found</span>
+            <strong id="badgesFound">0/0</strong>
+        </div>
 
-    align-items: center;
+    </section>
 
-    gap: 14px;
 
-    color: var(--muted);
+    <!-- RARITIES -->
 
-    font-size: 14px;
-}
+    <section class="section">
 
+        <div class="section-header">
 
-.account-area button {
+            <div>
+                <p class="eyebrow">COLLECTION</p>
+                <h2>Rarities</h2>
+            </div>
 
-    background: var(--card);
+        </div>
 
-    color: var(--text);
+        <div
+            id="rarityCollection"
+            class="rarity-grid"
+        ></div>
 
-    border: 1px solid var(--border);
+    </section>
 
-    border-radius: 9px;
 
-    padding: 9px 14px;
-}
+    <!-- BADGES -->
 
+    <section class="section">
 
-.container {
+        <div class="section-header">
 
-    width: min(1150px, calc(100% - 30px));
+            <div>
+                <p class="eyebrow">ACHIEVEMENTS</p>
+                <h2>Badges</h2>
+            </div>
 
-    margin: 35px auto 80px;
-}
+        </div>
 
+        <div
+            id="badgeCollection"
+            class="badge-grid"
+        ></div>
 
-.hero {
+    </section>
 
-    display: grid;
 
-    grid-template-columns: 1.4fr 1fr;
+    <!-- MILESTONES -->
 
-    gap: 25px;
+    <section class="section">
 
-    padding: 35px;
+        <div class="section-header">
 
-    background: linear-gradient(
-        135deg,
-        rgba(139,124,255,.13),
-        rgba(16,19,31,.95)
-    );
+            <div>
+                <p class="eyebrow">PROGRESSION</p>
+                <h2>Milestones</h2>
+            </div>
 
-    border: 1px solid var(--border);
+        </div>
 
-    border-radius: 22px;
+        <div
+            id="milestoneCollection"
+            class="milestone-grid"
+        ></div>
 
-    box-shadow: 0 20px 70px rgba(0,0,0,.25);
-}
+    </section>
 
 
-.eyebrow {
+    <!-- HISTORY -->
 
-    margin: 0 0 8px;
+    <section class="section">
 
-    color: var(--accent2);
+        <div class="section-header">
 
-    font-size: 11px;
+            <div>
+                <p class="eyebrow">HISTORY</p>
+                <h2>Recent Rolls</h2>
+            </div>
 
-    font-weight: 800;
+            <button
+                id="clearHistoryButton"
+                class="secondary-button"
+            >
+                Clear
+            </button>
 
-    letter-spacing: 2px;
-}
+        </div>
 
+        <div
+            id="history"
+            class="history-list"
+        ></div>
 
-.hero h1 {
+    </section>
 
-    margin: 0;
+</main>
 
-    font-size: clamp(38px, 6vw, 65px);
 
-    line-height: 1;
+<!-- ACCOUNT -->
 
-    letter-spacing: -2px;
-}
+<dialog id="accountDialog">
 
+    <div class="dialog-content">
 
-.subtitle {
+        <button
+            id="closeAccount"
+            class="dialog-close"
+        >
+            ×
+        </button>
 
-    max-width: 550px;
+        <p class="eyebrow">ONLINE ACCOUNT</p>
 
-    margin-top: 20px;
+        <h2 id="accountTitle">
+            Sign in
+        </h2>
 
-    color: var(--muted);
+        <p
+            id="accountDescription"
+            class="dialog-description"
+        >
+            Create an account to save your progress across devices.
+        </p>
 
-    line-height: 1.7;
-}
 
+        <div id="loggedOutPanel">
 
-.controls {
+            <label>
+                Username
 
-    display: flex;
+                <input
+                    id="usernameInput"
+                    type="text"
+                    maxlength="20"
+                    placeholder="Your username"
+                >
+            </label>
 
-    flex-direction: column;
 
-    justify-content: center;
-}
+            <label>
+                Email
 
+                <input
+                    id="emailInput"
+                    type="email"
+                    placeholder="you@example.com"
+                    autocomplete="email"
+                >
+            </label>
 
-.range-controls {
 
-    display: grid;
+            <label>
+                Password
 
-    grid-template-columns: 1fr 1fr;
+                <input
+                    id="passwordInput"
+                    type="password"
+                    placeholder="At least 6 characters"
+                    autocomplete="current-password"
+                >
+            </label>
 
-    gap: 12px;
-}
 
+            <div class="auth-switch">
 
-label {
+                <button
+                    id="switchAuthMode"
+                    class="text-button"
+                >
+                    Need an account? Sign up
+                </button>
 
-    color: var(--muted);
+            </div>
 
-    font-size: 12px;
 
-    display: flex;
+            <div class="dialog-buttons">
 
-    flex-direction: column;
+                <button
+                    id="authButton"
+                    class="roll-button"
+                >
+                    Sign In
+                </button>
 
-    gap: 7px;
-}
+                <button
+                    id="continueGuest"
+                    class="secondary-button"
+                >
+                    Continue as Guest
+                </button>
 
+            </div>
 
-input {
+        </div>
 
-    width: 100%;
 
-    background: var(--card2);
+        <div
+            id="loggedInPanel"
+            class="hidden"
+        >
 
-    color: var(--text);
+            <div class="online-status">
+                <span class="online-dot"></span>
+                <span>Online save active</span>
+            </div>
 
-    border: 1px solid var(--border);
+            <p id="loggedInEmail"></p>
 
-    border-radius: 9px;
+            <button
+                id="signOutButton"
+                class="secondary-button full-button"
+            >
+                Sign Out
+            </button>
 
-    padding: 11px;
+        </div>
 
-    outline: none;
-}
 
+        <p
+            id="authMessage"
+            class="auth-message"
+        ></p>
 
-input:focus {
+    </div>
 
-    border-color: var(--accent);
-}
+</dialog>
 
 
-.button-row {
+<script src="script.js"></script>
 
-    display: flex;
-
-    gap: 10px;
-
-    margin-top: 15px;
-}
-
-
-.roll-button {
-
-    flex: 1;
-
-    border: 0;
-
-    border-radius: 11px;
-
-    padding: 14px 20px;
-
-    color: white;
-
-    font-weight: 900;
-
-    background: linear-gradient(
-        135deg,
-        var(--accent),
-        #6656df
-    );
-
-    box-shadow:
-        0 8px 25px rgba(139,124,255,.25);
-
-    transition: .15s;
-}
-
-
-.roll-button:hover {
-
-    transform: translateY(-2px);
-
-    box-shadow:
-        0 12px 35px rgba(139,124,255,.35);
-}
-
-
-.roll-button:disabled {
-
-    opacity: .5;
-
-    cursor: not-allowed;
-
-    transform: none;
-}
-
-
-.secondary-button {
-
-    background: var(--card2);
-
-    color: var(--text);
-
-    border: 1px solid var(--border);
-
-    border-radius: 10px;
-
-    padding: 11px 15px;
-}
-
-
-.keyboard-hint {
-
-    color: var(--muted);
-
-    text-align: center;
-
-    font-size: 11px;
-
-    margin-bottom: 0;
-}
-
-
-kbd {
-
-    padding: 3px 6px;
-
-    border: 1px solid var(--border);
-
-    border-radius: 5px;
-
-    background: var(--card2);
-
-    color: var(--text);
-}
-
-
-/* RESULT */
-
-.result-card {
-
-    margin-top: 20px;
-
-    padding: 35px;
-
-    text-align: center;
-
-    background: var(--card);
-
-    border: 1px solid var(--border);
-
-    border-radius: 20px;
-}
-
-
-.result-label {
-
-    color: var(--muted);
-
-    font-size: 11px;
-
-    font-weight: 800;
-
-    letter-spacing: 2px;
-}
-
-
-.result-number {
-
-    margin-top: 8px;
-
-    font-size: clamp(55px, 10vw, 100px);
-
-    font-weight: 900;
-
-    letter-spacing: -4px;
-}
-
-
-.result-rarity {
-
-    color: var(--accent2);
-
-    font-size: 18px;
-
-    font-weight: 900;
-
-    letter-spacing: 2px;
-}
-
-
-.result-ep {
-
-    margin-top: 8px;
-
-    font-size: 20px;
-
-    font-weight: 800;
-}
-
-
-.result-effect {
-
-    margin-top: 6px;
-
-    color: var(--muted);
-
-    font-size: 13px;
-}
-
-
-/* STATS */
-
-.stats-grid {
-
-    margin-top: 20px;
-
-    display: grid;
-
-    grid-template-columns: repeat(4, 1fr);
-
-    gap: 12px;
-}
-
-
-.stat-card {
-
-    padding: 20px;
-
-    background: var(--card);
-
-    border: 1px solid var(--border);
-
-    border-radius: 15px;
-}
-
-
-.stat-card span {
-
-    display: block;
-
-    color: var(--muted);
-
-    font-size: 12px;
-}
-
-
-.stat-card strong {
-
-    display: block;
-
-    margin-top: 7px;
-
-    font-size: 22px;
-
-    overflow-wrap: anywhere;
-}
-
-
-.clickable-stat {
-
-    cursor: pointer;
-
-    transition:
-        transform .15s,
-        border-color .15s;
-}
-
-
-.clickable-stat:hover {
-
-    transform: translateY(-3px);
-
-    border-color: var(--accent);
-}
-
-
-.clickable-stat small {
-
-    display: block;
-
-    margin-top: 5px;
-
-    color: var(--muted);
-
-    font-size: 10px;
-}
-
-
-/* SECTIONS */
-
-.section {
-
-    margin-top: 45px;
-}
-
-
-.section-header {
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: space-between;
-
-    margin-bottom: 15px;
-}
-
-
-.section-header h2 {
-
-    margin: 0;
-
-    font-size: 25px;
-}
-
-
-/* RARITIES */
-
-.rarity-grid {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(auto-fit, minmax(130px, 1fr));
-
-    gap: 10px;
-}
-
-
-.rarity-card {
-
-    padding: 17px;
-
-    background: var(--card);
-
-    border: 1px solid var(--border);
-
-    border-radius: 13px;
-}
-
-
-.rarity-name {
-
-    font-size: 12px;
-
-    font-weight: 900;
-
-    letter-spacing: 1px;
-}
-
-
-.rarity-count {
-
-    margin-top: 8px;
-
-    font-size: 20px;
-
-    font-weight: 800;
-}
-
-
-.rarity-percent {
-
-    margin-top: 3px;
-
-    color: var(--muted);
-
-    font-size: 11px;
-}
-
-
-/* BADGES */
-
-.badge-grid {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(auto-fill, minmax(190px, 1fr));
-
-    gap: 10px;
-}
-
-
-.badge-card {
-
-    padding: 16px;
-
-    background: var(--card);
-
-    border: 1px solid var(--border);
-
-    border-radius: 13px;
-
-    opacity: .42;
-
-    transition: .15s;
-}
-
-
-.badge-card.found {
-
-    opacity: 1;
-
-    border-color: #3b4258;
-}
-
-
-.badge-card:hover {
-
-    transform: translateY(-2px);
-
-    border-color: var(--accent);
-}
-
-
-.badge-name {
-
-    font-weight: 800;
-
-    font-size: 14px;
-}
-
-
-.badge-ep {
-
-    margin-top: 6px;
-
-    color: var(--accent2);
-
-    font-size: 12px;
-}
-
-
-.badge-status {
-
-    margin-top: 10px;
-
-    color: var(--muted);
-
-    font-size: 11px;
-}
-
-
-/* MILESTONES */
-
-.milestone-grid {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(auto-fill, minmax(220px, 1fr));
-
-    gap: 10px;
-}
-
-
-.milestone-card {
-
-    padding: 18px;
-
-    background: var(--card);
-
-    border: 1px solid var(--border);
-
-    border-radius: 13px;
-
-    opacity: .45;
-}
-
-
-.milestone-card.completed {
-
-    opacity: 1;
-
-    border-color: var(--accent);
-}
-
-
-.milestone-name {
-
-    font-weight: 800;
-}
-
-
-.milestone-requirement {
-
-    margin-top: 6px;
-
-    color: var(--muted);
-
-    font-size: 12px;
-}
-
-
-.milestone-reward {
-
-    margin-top: 8px;
-
-    color: var(--accent2);
-
-    font-size: 12px;
-}
-
-
-/* HISTORY */
-
-.history-list {
-
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 8px;
-}
-
-
-.history-entry {
-
-    display: grid;
-
-    grid-template-columns:
-        1fr auto auto;
-
-    gap: 20px;
-
-    align-items: center;
-
-    padding: 13px 16px;
-
-    background: var(--card);
-
-    border: 1px solid var(--border);
-
-    border-radius: 11px;
-}
-
-
-.history-number {
-
-    font-weight: 800;
-}
-
-
-.history-rarity {
-
-    color: var(--accent2);
-
-    font-size: 11px;
-
-    font-weight: 800;
-}
-
-
-.history-ep {
-
-    font-size: 12px;
-
-    color: var(--muted);
-}
-
-
-/* DIALOG */
-
-dialog {
-
-    width: min(430px, calc(100% - 30px));
-
-    padding: 0;
-
-    color: var(--text);
-
-    background: var(--card);
-
-    border: 1px solid var(--border);
-
-    border-radius: 18px;
-
-    box-shadow: 0 30px 100px rgba(0,0,0,.7);
-}
-
-
-dialog::backdrop {
-
-    background: rgba(0,0,0,.75);
-
-    backdrop-filter: blur(5px);
-}
-
-
-.dialog-content {
-
-    padding: 30px;
-}
-
-
-.dialog-content h2 {
-
-    margin-top: 0;
-}
-
-
-.dialog-description {
-
-    color: var(--muted);
-
-    font-size: 13px;
-
-    line-height: 1.6;
-}
-
-
-.dialog-close {
-
-    float: right;
-
-    border: 0;
-
-    background: transparent;
-
-    color: var(--muted);
-
-    font-size: 25px;
-}
-
-
-.dialog-buttons {
-
-    display: flex;
-
-    gap: 10px;
-
-    margin-top: 20px;
-}
-
-
-/* RARITY POPUP */
-
-.rarity-popup {
-
-    position: fixed;
-
-    inset: 0;
-
-    z-index: 9999;
-
-    background: rgba(0,0,0,.78);
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    padding: 20px;
-}
-
-
-.rarity-popup-box {
-
-    width: min(800px, 95vw);
-
-    max-height: 85vh;
-
-    overflow-y: auto;
-
-    background: var(--card);
-
-    border: 1px solid var(--border);
-
-    border-radius: 18px;
-
-    padding: 25px;
-
-    box-shadow: 0 20px 80px rgba(0,0,0,.6);
-}
-
-
-.rarity-popup-box h2 {
-
-    margin-top: 0;
-}
-
-
-.close-rarity {
-
-    float: right;
-
-    border: none;
-
-    background: transparent;
-
-    color: var(--text);
-
-    font-size: 28px;
-
-    cursor: pointer;
-}
-
-
-.rarity-entry {
-
-    padding: 15px;
-
-    margin: 10px 0;
-
-    background: var(--card2);
-
-    border: 1px solid var(--border);
-
-    border-radius: 12px;
-}
-
-
-.rarity-entry-number {
-
-    font-size: 22px;
-
-    font-weight: bold;
-}
-
-
-.rarity-entry-badges {
-
-    margin-top: 8px;
-
-    color: var(--muted);
-
-    line-height: 1.6;
-}
-
-
-/* MYTHIC */
-
-.mythic-screen {
-
-    position: fixed;
-
-    inset: 0;
-
-    z-index: 10000;
-
-    pointer-events: none;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    background: rgba(0,0,0,.68);
-
-    animation: mythicFlash 3s ease;
-}
-
-
-.mythic-screen-text {
-
-    font-size: clamp(45px, 10vw, 110px);
-
-    font-weight: 900;
-
-    text-align: center;
-
-    letter-spacing: 8px;
-
-    text-shadow:
-        0 0 10px white,
-        0 0 30px white,
-        0 0 60px white;
-
-    animation: mythicText 3s ease;
-}
-
-
-@keyframes mythicFlash {
-
-    0% {
-        opacity: 0;
-    }
-
-    10% {
-        opacity: 1;
-    }
-
-    80% {
-        opacity: 1;
-    }
-
-    100% {
-        opacity: 0;
-    }
-
-}
-
-
-@keyframes mythicText {
-
-    0% {
-        transform: scale(.2);
-        opacity: 0;
-    }
-
-    15% {
-        transform: scale(1.1);
-        opacity: 1;
-    }
-
-    30% {
-        transform: scale(1);
-    }
-
-    100% {
-        transform: scale(1.15);
-        opacity: 0;
-    }
-
-}
-
-
-/* MILESTONE TOAST */
-
-.milestone-toast {
-
-    position: fixed;
-
-    right: 25px;
-
-    bottom: 25px;
-
-    z-index: 11000;
-
-    padding: 18px 22px;
-
-    border-radius: 14px;
-
-    background: var(--card);
-
-    border: 1px solid var(--accent);
-
-    box-shadow: 0 10px 40px rgba(0,0,0,.5);
-
-    animation: toastIn .4s ease;
-}
-
-
-.milestone-toast strong {
-
-    display: block;
-
-    font-size: 18px;
-}
-
-
-.milestone-toast span {
-
-    color: var(--muted);
-}
-
-
-@keyframes toastIn {
-
-    from {
-
-        transform: translateX(120%);
-
-        opacity: 0;
-
-    }
-
-    to {
-
-        transform: translateX(0);
-
-        opacity: 1;
-
-    }
-
-}
-
-
-/* MOBILE */
-
-@media (max-width: 800px) {
-
-    .hero {
-
-        grid-template-columns: 1fr;
-
-    }
-
-    .stats-grid {
-
-        grid-template-columns: repeat(2, 1fr);
-
-    }
-
-}
-
-
-@media (max-width: 500px) {
-
-    .topbar {
-
-        padding: 0 15px;
-
-    }
-
-    .container {
-
-        width: min(100% - 20px, 1150px);
-
-    }
-
-    .hero {
-
-        padding: 22px;
-
-    }
-
-    .stats-grid {
-
-        grid-template-columns: 1fr 1fr;
-
-    }
-
-    .range-controls {
-
-        grid-template-columns: 1fr;
-
-    }
-
-    .button-row {
-
-        flex-direction: column;
-
-    }
-
-    .history-entry {
-
-        grid-template-columns: 1fr auto;
-
-    }
-
-}
+</body>
+</html>
