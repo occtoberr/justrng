@@ -26,200 +26,443 @@
 
     <div class="account-area">
         <span id="accountName">Guest</span>
-        <button id="accountBtn" class="secondary-btn">Account</button>
+        <button id="accountBtn" class="secondary-btn">
+            Account
+        </button>
     </div>
 </header>
+
 
 <main>
 
     <section class="hero">
-        <div class="eyebrow">RANDOM NUMBER SIMULATOR</div>
 
-        <h1>How lucky are you?</h1>
+        <div class="eyebrow">
+            RANDOM NUMBER SIMULATOR
+        </div>
+
+        <h1>
+            How lucky are you?
+        </h1>
 
         <p class="hero-text">
             Roll numbers, discover badges, earn EP and hunt for
             ridiculously rare numbers.
         </p>
 
+
         <div class="controls">
 
+            <!-- LOCKED MINIMUM -->
+
             <div class="input-group">
-                <label for="minNumber">Minimum</label>
+
+                <label for="minNumber">
+                    Minimum
+                </label>
+
                 <input
                     id="minNumber"
                     type="number"
-                    min="0"
-                    max="1000000"
                     value="0"
+                    readonly
+                    aria-readonly="true"
+                    tabindex="-1"
                 >
+
             </div>
 
+
+            <!-- LOCKED MAXIMUM -->
+
             <div class="input-group">
-                <label for="maxNumber">Maximum</label>
+
+                <label for="maxNumber">
+                    Maximum
+                </label>
+
                 <input
                     id="maxNumber"
                     type="number"
-                    min="0"
-                    max="1000000"
                     value="1000000"
+                    readonly
+                    aria-readonly="true"
+                    tabindex="-1"
                 >
+
             </div>
 
-            <button id="rollBtn" class="roll-btn">
+
+            <button
+                id="rollBtn"
+                class="roll-btn"
+            >
                 ROLL
             </button>
 
-            <button id="autoBtn" class="secondary-btn">
+
+            <button
+                id="autoBtn"
+                class="secondary-btn"
+            >
                 AUTO ROLL: OFF
             </button>
 
-            <select id="autoSpeed" class="speed-select">
-                <option value="250">4 rolls / sec</option>
-                <option value="500" selected>2 rolls / sec</option>
-                <option value="1000">1 roll / sec</option>
-                <option value="2000">1 roll / 2 sec</option>
+
+            <select
+                id="autoSpeed"
+                class="speed-select"
+            >
+
+                <option value="250">
+                    4 rolls / sec
+                </option>
+
+                <option value="500" selected>
+                    2 rolls / sec
+                </option>
+
+                <option value="1000">
+                    1 roll / sec
+                </option>
+
+                <option value="2000">
+                    1 roll / 2 sec
+                </option>
+
             </select>
 
-            <button id="resetBtn" class="danger-btn">
+
+            <button
+                id="resetBtn"
+                class="danger-btn"
+            >
                 Reset Stats
             </button>
 
         </div>
 
+
         <div class="space-hint">
             Press <kbd>SPACE</kbd> to roll
         </div>
+
     </section>
 
 
-    <section id="resultCard" class="result-card">
+    <!-- RESULT -->
+
+    <section
+        id="resultCard"
+        class="result-card"
+    >
 
         <div class="result-label">
             LATEST ROLL
         </div>
 
-        <div id="latestNumber" class="latest-number">
+
+        <div
+            id="latestNumber"
+            class="latest-number"
+        >
             —
         </div>
 
-        <div id="latestRarity" class="latest-rarity">
+
+        <div
+            id="latestRarity"
+            class="latest-rarity"
+        >
             READY
         </div>
 
-        <div id="latestEP" class="latest-ep">
+
+        <div
+            id="latestEP"
+            class="latest-ep"
+        >
             0 EP
         </div>
 
-        <div id="latestEffect" class="latest-effect">
+
+        <div
+            id="latestEffect"
+            class="latest-effect"
+        >
             Roll to begin
         </div>
 
     </section>
 
 
+    <!-- STATS -->
+
     <section class="stats-grid">
 
         <div class="stat-card">
-            <span class="stat-label">Total EP</span>
-            <strong id="totalEp">0</strong>
+
+            <span class="stat-label">
+                Total EP
+            </span>
+
+            <strong id="totalEp">
+                0
+            </strong>
+
         </div>
+
 
         <div class="stat-card">
-            <span class="stat-label">Total Rolls</span>
-            <strong id="totalRolls">0</strong>
+
+            <span class="stat-label">
+                Total Rolls
+            </span>
+
+            <strong id="totalRolls">
+                0
+            </strong>
+
         </div>
+
 
         <div class="stat-card">
-            <span class="stat-label">Best EP</span>
-            <strong id="bestEp">0</strong>
+
+            <span class="stat-label">
+                Best EP
+            </span>
+
+            <strong id="bestEp">
+                0
+            </strong>
+
         </div>
+
 
         <div class="stat-card">
-            <span class="stat-label">Best Number</span>
-            <strong id="bestNumber">—</strong>
+
+            <span class="stat-label">
+                Best Number
+            </span>
+
+            <strong id="bestNumber">
+                —
+            </strong>
+
         </div>
 
-        <button id="anomalyStat" class="stat-card clickable-stat">
-            <span class="stat-label">Anomalies</span>
-            <strong id="anomalies">0</strong>
-            <small>Click to view</small>
+
+        <!-- ANOMALIES -->
+
+        <button
+            id="anomalyStat"
+            class="stat-card clickable-stat"
+        >
+
+            <span class="stat-label">
+                Anomalies
+            </span>
+
+            <strong id="anomalies">
+                0
+            </strong>
+
+            <small>
+                Click to view
+            </small>
+
         </button>
 
-        <button id="mythicStat" class="stat-card clickable-stat">
-            <span class="stat-label">Mythics</span>
-            <strong id="mythics">0</strong>
-            <small>Click to view</small>
+
+        <!-- MYTHICS -->
+
+        <button
+            id="mythicStat"
+            class="stat-card clickable-stat"
+        >
+
+            <span class="stat-label">
+                Mythics
+            </span>
+
+            <strong id="mythics">
+                0
+            </strong>
+
+            <small>
+                Click to view
+            </small>
+
         </button>
 
+
+        <!-- HOLIES -->
+
+        <button
+            id="holyStat"
+            class="stat-card clickable-stat holy-stat"
+        >
+
+            <span class="stat-label">
+                Holies
+            </span>
+
+            <strong id="holies">
+                0
+            </strong>
+
+            <small>
+                Click to view
+            </small>
+
+        </button>
+
+
+        <!-- BADGES -->
+
         <div class="stat-card">
-            <span class="stat-label">Badges Found</span>
-            <strong id="badgesFound">0/0</strong>
+
+            <span class="stat-label">
+                Badges Found
+            </span>
+
+            <strong id="badgesFound">
+                0/0
+            </strong>
+
         </div>
 
     </section>
 
 
+    <!-- RARITIES -->
+
     <section class="section">
 
         <div class="section-heading">
+
             <div>
-                <span class="section-kicker">COLLECTION</span>
-                <h2>Rarities</h2>
+
+                <span class="section-kicker">
+                    COLLECTION
+                </span>
+
+                <h2>
+                    Rarities
+                </h2>
+
             </div>
+
         </div>
 
-        <div id="rarityGrid" class="rarity-grid"></div>
+
+        <div
+            id="rarityGrid"
+            class="rarity-grid"
+        ></div>
 
     </section>
 
 
+    <!-- BADGES -->
+
     <section class="section">
 
         <div class="section-heading">
+
             <div>
-                <span class="section-kicker">ACHIEVEMENTS</span>
-                <h2>Badges</h2>
+
+                <span class="section-kicker">
+                    ACHIEVEMENTS
+                </span>
+
+                <h2>
+                    Badges
+                </h2>
+
             </div>
 
-            <span id="badgeCount" class="section-count">
+
+            <span
+                id="badgeCount"
+                class="section-count"
+            >
                 0/0
             </span>
+
         </div>
 
-        <div id="badgeGrid" class="badge-grid"></div>
+
+        <div
+            id="badgeGrid"
+            class="badge-grid"
+        ></div>
 
     </section>
 
 
+    <!-- MILESTONES -->
+
     <section class="section">
 
         <div class="section-heading">
+
             <div>
-                <span class="section-kicker">PROGRESSION</span>
-                <h2>Milestones</h2>
+
+                <span class="section-kicker">
+                    PROGRESSION
+                </span>
+
+                <h2>
+                    Milestones
+                </h2>
+
             </div>
+
         </div>
 
-        <div id="milestoneGrid" class="milestone-grid"></div>
+
+        <div
+            id="milestoneGrid"
+            class="milestone-grid"
+        ></div>
 
     </section>
 
 
+    <!-- HISTORY -->
+
     <section class="section">
 
         <div class="section-heading">
+
             <div>
-                <span class="section-kicker">HISTORY</span>
-                <h2>Recent Rolls</h2>
+
+                <span class="section-kicker">
+                    HISTORY
+                </span>
+
+                <h2>
+                    Recent Rolls
+                </h2>
+
             </div>
 
-            <button id="clearHistoryBtn" class="small-btn">
+
+            <button
+                id="clearHistoryBtn"
+                class="small-btn"
+            >
                 Clear
             </button>
+
         </div>
 
-        <div id="historyList" class="history-list"></div>
+
+        <div
+            id="historyList"
+            class="history-list"
+        ></div>
 
     </section>
 
@@ -228,21 +471,35 @@
 
 <!-- ACCOUNT MODAL -->
 
-<dialog id="accountDialog" class="dialog">
+<dialog
+    id="accountDialog"
+    class="dialog"
+>
 
     <div class="dialog-inner">
 
-        <button id="closeAccountBtn" class="dialog-close">
+        <button
+            id="closeAccountBtn"
+            class="dialog-close"
+        >
             ×
         </button>
 
-        <span class="section-kicker">ACCOUNT</span>
 
-        <h2>Cloud Progress</h2>
+        <span class="section-kicker">
+            ACCOUNT
+        </span>
+
+
+        <h2>
+            Cloud Progress
+        </h2>
+
 
         <p class="dialog-text">
             Create an account to move your RNG Vault progress between devices.
         </p>
+
 
         <label for="accountNameInput">
             Username
@@ -255,6 +512,7 @@
             placeholder="Your username"
         >
 
+
         <label for="emailInput">
             Email
         </label>
@@ -265,6 +523,7 @@
             placeholder="you@example.com"
             autocomplete="email"
         >
+
 
         <label for="passwordInput">
             Password
@@ -278,59 +537,98 @@
             autocomplete="current-password"
         >
 
+
         <div class="account-buttons">
 
-            <button id="signInBtn" class="primary-btn">
+            <button
+                id="signInBtn"
+                class="primary-btn"
+            >
                 Sign In
             </button>
 
-            <button id="signUpBtn" class="secondary-btn">
+
+            <button
+                id="signUpBtn"
+                class="secondary-btn"
+            >
                 Create Account
             </button>
 
-            <button id="signOutBtn" class="danger-btn">
+
+            <button
+                id="signOutBtn"
+                class="danger-btn"
+            >
                 Sign Out
             </button>
 
         </div>
 
-        <button id="guestBtn" class="guest-btn">
+
+        <button
+            id="guestBtn"
+            class="guest-btn"
+        >
             Continue as Guest
         </button>
 
-        <p id="authStatus" class="auth-status">
+
+        <p
+            id="authStatus"
+            class="auth-status"
+        >
             Guest mode active.
         </p>
 
-        <p id="cloudNote" class="cloud-note"></p>
+
+        <p
+            id="cloudNote"
+            class="cloud-note"
+        ></p>
 
     </div>
 
 </dialog>
 
 
-<!-- ANOMALY / MYTHIC MODAL -->
+<!-- ANOMALY / MYTHIC / HOLY DETAILS -->
 
-<dialog id="detailsDialog" class="dialog">
+<dialog
+    id="detailsDialog"
+    class="dialog"
+>
 
     <div class="dialog-inner details-inner">
 
-        <button id="closeDetailsBtn" class="dialog-close">
+        <button
+            id="closeDetailsBtn"
+            class="dialog-close"
+        >
             ×
         </button>
+
 
         <h2 id="detailsTitle">
             Rare Rolls
         </h2>
 
-        <div id="detailsBody" class="details-body"></div>
+
+        <div
+            id="detailsBody"
+            class="details-body"
+        ></div>
 
     </div>
 
 </dialog>
 
 
-<div id="toastContainer" class="toast-container"></div>
+<div
+    id="toastContainer"
+    class="toast-container"
+></div>
+
 
 </body>
 </html>
