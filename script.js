@@ -3,9 +3,10 @@
 /*
 ==================================================
 RNG VAULT
-Version 4.3.0
+Version 4.4.0
 ==================================================
 SUPABASE CLOUD SAVES + LOCAL FALLBACK
+OPTIMIZED BUILD
 ==================================================
 */
 
@@ -40,113 +41,58 @@ const MAX_RARE_HISTORY = 150;
 
 
 /* ==================================================
+   DOM
+================================================== */
+
+const $ = id => document.getElementById(id);
+
+
+/* ==================================================
    RARITIES
 ================================================== */
 
 const RARITIES = [
-    {
-        id: 'TRASH',
-        label: 'TRASH',
-        min: 0,
-        max: 99
-    },
-    {
-        id: 'COMMON',
-        label: 'COMMON',
-        min: 100,
-        max: 999
-    },
-    {
-        id: 'UNCOMMON',
-        label: 'UNCOMMON',
-        min: 1000,
-        max: 9999
-    },
-    {
-        id: 'RARE',
-        label: 'RARE',
-        min: 10000,
-        max: 49999
-    },
-    {
-        id: 'EPIC',
-        label: 'EPIC',
-        min: 50000,
-        max: 149999
-    },
-    {
-        id: 'ANOMALY',
-        label: 'ANOMALY',
-        min: 150000,
-        max: 499999
-    },
-    {
-        id: 'MYTHIC',
-        label: 'MYTHIC',
-        min: 500000,
-        max: 799999
-    },
-    {
-        id: 'HOLY',
-        label: 'HOLY',
-        min: 800000,
-        max: Infinity
-    }
-];
+    ['TRASH', 0, 99],
+    ['COMMON', 100, 999],
+    ['UNCOMMON', 1000, 9999],
+    ['RARE', 10000, 49999],
+    ['EPIC', 50000, 149999],
+    ['ANOMALY', 150000, 499999],
+    ['MYTHIC', 500000, 799999],
+    ['HOLY', 800000, Infinity]
+].map(([id, min, max]) => ({
+    id,
+    label: id,
+    min,
+    max
+}));
 
-
-/* ==================================================
-   DEFAULT STATE
-================================================== */
 
 const DEFAULT_STATE = {
     version: 4,
     username: 'Guest',
-
     totalEp: 0,
     totalRolls: 0,
-
     bestEp: 0,
     bestNumber: null,
-
     mythics: 0,
     holys: 0,
     anomalies: 0,
     epics: 0,
-
-    rarityCounts: {
-        TRASH: 0,
-        COMMON: 0,
-        UNCOMMON: 0,
-        RARE: 0,
-        EPIC: 0,
-        ANOMALY: 0,
-        MYTHIC: 0,
-        HOLY: 0
-    },
-
+    rarityCounts: Object.fromEntries(
+        RARITIES.map(r => [r.id, 0])
+    ),
     foundBadges: {},
-
     history: [],
     rareHistory: [],
-
     milestonesClaimed: []
 };
 
 
-let state = loadLocalState();
+let state;
 let rollLocked = false;
 let autoRunning = false;
 let audioContext = null;
-
-
-/* ==================================================
-   DOM HELPERS
-================================================== */
-
-function $(id) {
-    return document.getElementById(id);
-}
 
 
 /* ==================================================
@@ -154,9 +100,7 @@ function $(id) {
 ================================================== */
 
 function cloneDefaultState() {
-    return JSON.parse(
-        JSON.stringify(DEFAULT_STATE)
-    );
+    return JSON.parse(JSON.stringify(DEFAULT_STATE));
 }
 
 
@@ -170,79 +114,57 @@ function normalizeState(data) {
     Object.assign(base, data);
 
     base.version = 4;
+    base.username =
+        typeof base.username === 'string' &&
+        base.username.trim()
+            ? base.username
+            : 'Guest';
 
-    if (
-        typeof base.username !== 'string' ||
-        !base.username.trim()
-    ) {
-        base.username = 'Guest';
+    for (const key of [
+        'totalEp',
+        'totalRolls',
+        'bestEp',
+        'mythics',
+        'holys',
+        'anomalies',
+        'epics'
+    ]) {
+        base[key] = Number(base[key]) || 0;
     }
 
-    base.totalEp = Number(base.totalEp) || 0;
-    base.totalRolls = Number(base.totalRolls) || 0;
-    base.bestEp = Number(base.bestEp) || 0;
-
-    if (
-        base.bestNumber !== null &&
-        base.bestNumber !== undefined
-    ) {
-        const parsedBest =
-            Number(base.bestNumber);
-
-        base.bestNumber =
-            Number.isFinite(parsedBest)
-                ? parsedBest
-                : null;
-    } else {
-        base.bestNumber = null;
+    if (base.bestNumber !== null) {
+        const n = Number(base.bestNumber);
+        base.bestNumber = Number.isFinite(n) ? n : null;
     }
 
-    base.mythics = Number(base.mythics) || 0;
-    base.holys = Number(base.holys) || 0;
-    base.anomalies = Number(base.anomalies) || 0;
-    base.epics = Number(base.epics) || 0;
-
-    if (
-        !base.rarityCounts ||
-        typeof base.rarityCounts !== 'object'
-    ) {
+    if (!base.rarityCounts ||
+        typeof base.rarityCounts !== 'object') {
         base.rarityCounts = {};
     }
 
     for (const rarity of RARITIES) {
         base.rarityCounts[rarity.id] =
-            Number(
-                base.rarityCounts[rarity.id]
-            ) || 0;
+            Number(base.rarityCounts[rarity.id]) || 0;
     }
 
-    if (
-        !base.foundBadges ||
-        typeof base.foundBadges !== 'object'
-    ) {
+    if (!base.foundBadges ||
+        typeof base.foundBadges !== 'object') {
         base.foundBadges = {};
     }
 
-    if (!Array.isArray(base.history)) {
-        base.history = [];
+    for (const key of [
+        'history',
+        'rareHistory',
+        'milestonesClaimed'
+    ]) {
+        if (!Array.isArray(base[key])) {
+            base[key] = [];
+        }
     }
 
-    if (!Array.isArray(base.rareHistory)) {
-        base.rareHistory = [];
-    }
-
-    if (!Array.isArray(base.milestonesClaimed)) {
-        base.milestonesClaimed = [];
-    }
-
-    base.history =
-        base.history.slice(0, MAX_HISTORY);
-
+    base.history = base.history.slice(0, MAX_HISTORY);
     base.rareHistory =
-        base.rareHistory.slice(
-            0,
-            MAX_RARE_HISTORY
-        );
+        base.rareHistory.slice(0, MAX_RARE_HISTORY);
 
     return base;
 }
@@ -250,22 +172,12 @@ function normalizeState(data) {
 
 function loadLocalState() {
     try {
-        const raw =
-            localStorage.getItem(STORAGE_KEY);
-
-        if (!raw) {
-            return cloneDefaultState();
-        }
-
-        return normalizeState(
-            JSON.parse(raw)
-        );
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw
+            ? normalizeState(JSON.parse(raw))
+            : cloneDefaultState();
     } catch (error) {
-        console.error(
-            'Could not load local save:',
-            error
-        );
-
+        console.error('Could not load local save:', error);
         return cloneDefaultState();
     }
 }
@@ -278,20 +190,20 @@ function saveLocal() {
             JSON.stringify(state)
         );
     } catch (error) {
-        console.error(
-            'Could not save local state:',
-            error
-        );
+        console.error('Could not save local state:', error);
     }
 }
 
 
+state = loadLocalState();
+
+
 /* ==================================================
-   SUPABASE HELPERS
+   SUPABASE
 ================================================== */
 
 function loadSupabaseLibrary() {
-    return new Promise(function (resolve) {
+    return new Promise(resolve => {
         if (window.supabase) {
             resolve(true);
             return;
@@ -310,42 +222,32 @@ function loadSupabaseLibrary() {
         if (existing) {
             existing.addEventListener(
                 'load',
-                function () {
-                    resolve(Boolean(window.supabase));
-                },
+                () => resolve(Boolean(window.supabase)),
                 { once: true }
             );
 
             existing.addEventListener(
                 'error',
-                function () {
-                    resolve(false);
-                },
+                () => resolve(false),
                 { once: true }
             );
 
             return;
         }
 
-        const script =
-            document.createElement('script');
+        const script = document.createElement('script');
 
         script.src =
             'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
 
         script.async = true;
-
         script.dataset.rngVaultSupabase = 'true';
 
-        script.onload = function () {
+        script.onload = () =>
             resolve(Boolean(window.supabase));
-        };
 
-        script.onerror = function () {
-            console.error(
-                'Could not load Supabase library.'
-            );
-
+        script.onerror = () => {
+            console.error('Could not load Supabase library.');
             resolve(false);
         };
 
@@ -359,10 +261,11 @@ async function initializeSupabase() {
         return false;
     }
 
-    const loaded =
-        await loadSupabaseLibrary();
+    if (supabaseClient) {
+        return true;
+    }
 
-    if (!loaded || !window.supabase) {
+    if (!await loadSupabaseLibrary()) {
         return false;
     }
 
@@ -373,25 +276,20 @@ async function initializeSupabase() {
                 SUPABASE_KEY
             );
 
-        const result =
+        const { data, error } =
             await supabaseClient.auth.getSession();
 
-        if (result.error) {
-            throw result.error;
+        if (error) {
+            throw error;
         }
 
         currentUser =
-            result.data &&
-            result.data.session
-                ? result.data.session.user
-                : null;
+            data?.session?.user || null;
 
         supabaseClient.auth.onAuthStateChange(
-            async function (event, session) {
+            async (event, session) => {
                 currentUser =
-                    session
-                        ? session.user
-                        : null;
+                    session?.user || null;
 
                 if (
                     event === 'SIGNED_IN' &&
@@ -424,50 +322,35 @@ async function initializeSupabase() {
 
 
 async function loadCloudState() {
-    if (
-        !supabaseClient ||
-        !currentUser
-    ) {
+    if (!supabaseClient || !currentUser) {
         return false;
     }
 
     try {
-        const result =
+        const { data, error } =
             await supabaseClient
                 .from('game_saves')
                 .select('data')
                 .eq('user_id', currentUser.id)
                 .maybeSingle();
 
-        if (result.error) {
-            throw result.error;
+        if (error) {
+            throw error;
         }
 
-        if (
-            result.data &&
-            result.data.data
-        ) {
-            state =
-                normalizeState(
-                    result.data.data
-                );
-
+        if (data?.data) {
+            state = normalizeState(data.data);
             saveLocal();
             renderAll();
-
             return true;
         }
 
         /*
-        No cloud save yet.
-
-        Upload the current local state
-        to the new account.
+        New account:
+        upload the current local guest save.
         */
 
-        await saveCloudState();
-
-        return true;
+        return await saveCloudState();
     } catch (error) {
         console.error(
             'Could not load cloud save:',
@@ -480,31 +363,27 @@ async function loadCloudState() {
 
 
 async function saveCloudState() {
-    if (
-        !supabaseClient ||
-        !currentUser
-    ) {
+    if (!supabaseClient || !currentUser) {
         return false;
     }
 
     try {
-        const result =
+        const { error } =
             await supabaseClient
                 .from('game_saves')
                 .upsert(
                     {
                         user_id: currentUser.id,
                         data: state,
-                        updated_at:
-                            new Date().toISOString()
+                        updated_at: new Date().toISOString()
                     },
                     {
                         onConflict: 'user_id'
                     }
                 );
 
-        if (result.error) {
-            throw result.error;
+        if (error) {
+            throw error;
         }
 
         return true;
@@ -520,34 +399,23 @@ async function saveCloudState() {
 
 
 function queueCloudSave() {
-    if (
-        !supabaseClient ||
-        !currentUser
-    ) {
+    if (!supabaseClient || !currentUser) {
         return;
     }
 
-    if (cloudSaveTimer) {
-        clearTimeout(cloudSaveTimer);
-    }
+    clearTimeout(cloudSaveTimer);
 
-    cloudSaveTimer =
-        setTimeout(
-            function () {
-                saveCloudState();
-            },
-            500
-        );
+    cloudSaveTimer = setTimeout(
+        saveCloudState,
+        500
+    );
 }
 
 
 async function saveEverything() {
     saveLocal();
 
-    if (
-        supabaseClient &&
-        currentUser
-    ) {
+    if (supabaseClient && currentUser) {
         await saveCloudState();
     }
 }
@@ -559,124 +427,79 @@ async function saveEverything() {
 
 function randomInt(min, max) {
     return Math.floor(
-        Math.random() *
-        (max - min + 1)
+        Math.random() * (max - min + 1)
     ) + min;
 }
 
 
-function formatNumber(number) {
-    return Number(number)
-        .toLocaleString('en-US');
+function formatNumber(n) {
+    return Number(n).toLocaleString('en-US');
 }
 
 
-function formatEP(ep) {
-    return Number(ep)
-        .toLocaleString('en-US');
+const formatEP = formatNumber;
+
+
+function pad(n) {
+    return String(n).padStart(6, '0');
 }
 
 
-function pad(number) {
-    return String(number)
-        .padStart(6, '0');
-}
-
-
-function digits(number) {
-    return pad(number)
-        .split('')
-        .map(function (digit) {
-            return Number(digit);
-        });
+function digits(n) {
+    return [...pad(n)].map(Number);
 }
 
 
 function digitSum(ds) {
-    return ds.reduce(
-        function (sum, digit) {
-            return sum + digit;
-        },
-        0
-    );
+    return ds.reduce((sum, d) => sum + d, 0);
 }
 
 
-function isPalindrome(value) {
-    const str = pad(value);
-
-    return (
-        str ===
-        str.split('').reverse().join('')
-    );
+function isPalindrome(n) {
+    const s = pad(n);
+    return s === [...s].reverse().join('');
 }
 
 
-function isPrime(number) {
-    if (number < 2) {
-        return false;
-    }
+function isPrime(n) {
+    if (n < 2) return false;
+    if (n === 2) return true;
+    if (n % 2 === 0) return false;
 
-    if (number === 2) {
-        return true;
-    }
-
-    if (number % 2 === 0) {
-        return false;
-    }
-
-    for (
-        let i = 3;
-        i * i <= number;
-        i += 2
-    ) {
-        if (number % i === 0) {
-            return false;
-        }
+    for (let i = 3; i * i <= n; i += 2) {
+        if (n % i === 0) return false;
     }
 
     return true;
 }
 
 
-function isPower(number, base) {
-    if (number < 1) {
-        return false;
+function isPower(n, base) {
+    if (n < 1) return false;
+
+    while (n % base === 0) {
+        n /= base;
     }
 
-    let value = number;
-
-    while (value % base === 0) {
-        value /= base;
-    }
-
-    return value === 1;
+    return n === 1;
 }
 
 
-function isFibonacci(number) {
-    function isSquare(value) {
-        const root =
-            Math.floor(Math.sqrt(value));
-
-        return root * root === value;
-    }
+function isFibonacci(n) {
+    const square = x => {
+        const root = Math.floor(Math.sqrt(x));
+        return root * root === x;
+    };
 
     return (
-        isSquare(
-            5 * number * number + 4
-        ) ||
-        isSquare(
-            5 * number * number - 4
-        )
+        square(5 * n * n + 4) ||
+        square(5 * n * n - 4)
     );
 }
 
 
 function factorial(n) {
-    if (n < 0 || n > 10) {
-        return null;
-    }
+    if (n < 0 || n > 10) return null;
 
     let result = 1;
 
@@ -689,14 +512,8 @@ function factorial(n) {
 
 
 function productOfDigits(ds) {
-    if (!ds.length) {
-        return 0;
-    }
-
     return ds.reduce(
-        function (product, digit) {
-            return product * digit;
-        },
+        (product, digit) => product * digit,
         1
     );
 }
@@ -707,66 +524,27 @@ function productOfDigits(ds) {
 ================================================== */
 
 function getRarityFromEP(ep) {
-    for (const rarity of RARITIES) {
-        if (
-            ep >= rarity.min &&
-            ep <= rarity.max
-        ) {
-            return rarity;
-        }
-    }
-
-    return RARITIES[
-        RARITIES.length - 1
-    ];
+    return (
+        RARITIES.find(
+            rarity =>
+                ep >= rarity.min &&
+                ep <= rarity.max
+        ) ||
+        RARITIES[RARITIES.length - 1]
+    );
 }
 
-
-/* ==================================================
-   BALANCED BASE EP
-================================================== */
 
 function rollBaseEP() {
     const roll = Math.random();
 
-    /*
-    TRASH      1%
-    COMMON    49%
-    UNCOMMON  25%
-    RARE      15%
-    EPIC       7%
-    ANOMALY    2.9%
-    MYTHIC     0.09%
-    HOLY       0.01%
-    */
-
-    if (roll < 0.01) {
-        return randomInt(0, 99);
-    }
-
-    if (roll < 0.50) {
-        return randomInt(100, 999);
-    }
-
-    if (roll < 0.75) {
-        return randomInt(1000, 9999);
-    }
-
-    if (roll < 0.90) {
-        return randomInt(10000, 49999);
-    }
-
-    if (roll < 0.97) {
-        return randomInt(50000, 149999);
-    }
-
-    if (roll < 0.999) {
-        return randomInt(150000, 499999);
-    }
-
-    if (roll < 0.9999) {
-        return randomInt(500000, 799999);
-    }
+    if (roll < 0.01) return randomInt(0, 99);
+    if (roll < 0.50) return randomInt(100, 999);
+    if (roll < 0.75) return randomInt(1000, 9999);
+    if (roll < 0.90) return randomInt(10000, 49999);
+    if (roll < 0.97) return randomInt(50000, 149999);
+    if (roll < 0.999) return randomInt(150000, 499999);
+    if (roll < 0.9999) return randomInt(500000, 799999);
 
     return randomInt(800000, 1000000);
 }
@@ -776,548 +554,188 @@ function rollBaseEP() {
    BADGES
 ================================================== */
 
-function addBadge(
-    id,
-    name,
-    ep,
-    description,
-    test
-) {
+const badgeDefinitions = [];
+
+
+function addBadge(id, name, ep, description, test) {
     badgeDefinitions.push({
-        id: id,
-        name: name,
-        ep: ep,
-        description: description,
-        test: test
+        id,
+        name,
+        ep,
+        description,
+        test
     });
 }
 
 
-const badgeDefinitions = [];
-
-
 /* ---------------- General ---------------- */
 
-addBadge(
-    'even',
-    'Even',
-    5,
-    'The number is even',
-    function (n) {
-        return n % 2 === 0;
-    }
-);
+[
+    ['even', 'Even', 5, 'The number is even', n => n % 2 === 0],
+    ['odd', 'Odd', 5, 'The number is odd', n => n % 2 === 1],
+    ['prime', 'Prime', 150, 'The number is prime', isPrime],
+    ['pal', 'Palindrome', 500, 'Reads the same forwards and backwards', isPalindrome],
+    ['repeat', 'Repeating Digit', 100, 'Contains a repeated digit',
+        n => new Set(digits(n)).size < 6],
 
-addBadge(
-    'odd',
-    'Odd',
-    5,
-    'The number is odd',
-    function (n) {
-        return n % 2 === 1;
-    }
-);
+    ['ascending', 'Ascending', 300, 'Digits never decrease',
+        n => {
+            const d = digits(n);
+            return d.every((x, i) => i === 0 || x >= d[i - 1]);
+        }],
 
-addBadge(
-    'prime',
-    'Prime',
-    150,
-    'The number is prime',
-    function (n) {
-        return isPrime(n);
-    }
-);
+    ['descending', 'Descending', 300, 'Digits never increase',
+        n => {
+            const d = digits(n);
+            return d.every((x, i) => i === 0 || x <= d[i - 1]);
+        }],
 
-addBadge(
-    'pal',
-    'Palindrome',
-    500,
-    'Reads the same forwards and backwards',
-    function (n) {
-        return isPalindrome(n);
-    }
-);
+    ['neighbors', 'Neighbor Digits', 150, 'Contains two neighboring digits',
+        n => {
+            const d = digits(n);
+            return d.some((x, i) =>
+                i > 0 && Math.abs(x - d[i - 1]) === 1
+            );
+        }],
 
-addBadge(
-    'repeat',
-    'Repeating Digit',
-    100,
-    'Contains a repeated digit',
-    function (n) {
-        const ds = digits(n);
+    ['hetero', 'Heterogeneous', 100, 'Contains at least four different digits',
+        n => new Set(digits(n)).size >= 4],
 
-        return new Set(ds).size < 6;
-    }
-);
+    ['harshad', 'Harshad', 500, 'Divisible by its digit sum',
+        n => {
+            const sum = digitSum(digits(n));
+            return sum > 0 && n % sum === 0;
+        }],
 
-addBadge(
-    'ascending',
-    'Ascending',
-    300,
-    'Digits never decrease',
-    function (n) {
-        const ds = digits(n);
+    ['square', 'Perfect Square', 1000, 'The number is a perfect square',
+        n => {
+            const root = Math.floor(Math.sqrt(n));
+            return root * root === n;
+        }],
 
-        for (
-            let i = 1;
-            i < ds.length;
-            i++
-        ) {
-            if (ds[i] < ds[i - 1]) {
-                return false;
+    ['power2', 'Power of 2', 1500, 'The number is a power of two',
+        n => isPower(n, 2)],
+
+    ['power3', 'Power of 3', 2500, 'The number is a power of three',
+        n => isPower(n, 3)],
+
+    ['fibonacci', 'Fibonacci', 1200, 'The number is in the Fibonacci sequence',
+        isFibonacci],
+
+    ['factorial', 'Factorial', 3500, 'The number is a factorial',
+        n => {
+            for (let i = 0; i <= 10; i++) {
+                if (factorial(i) === n) return true;
             }
-        }
+            return false;
+        }],
 
-        return true;
-    }
-);
+    ['triple', 'Triple Digit', 800, 'Contains three identical digits',
+        n => {
+            const d = digits(n);
+            return d.some((x, i) =>
+                i < 4 &&
+                x === d[i + 1] &&
+                x === d[i + 2]
+            );
+        }],
 
-addBadge(
-    'descending',
-    'Descending',
-    300,
-    'Digits never increase',
-    function (n) {
-        const ds = digits(n);
+    ['quad', 'Quad Digit', 3000, 'Contains four identical digits',
+        n => {
+            const d = digits(n);
+            return d.some((x, i) =>
+                i < 3 &&
+                x === d[i + 1] &&
+                x === d[i + 2] &&
+                x === d[i + 3]
+            );
+        }],
 
-        for (
-            let i = 1;
-            i < ds.length;
-            i++
-        ) {
-            if (ds[i] > ds[i - 1]) {
-                return false;
-            }
-        }
+    ['twoPair', 'Two Pair', 700, 'Contains two separate digit pairs',
+        n => {
+            const counts = {};
 
-        return true;
-    }
-);
+            digits(n).forEach(d => {
+                counts[d] = (counts[d] || 0) + 1;
+            });
 
-addBadge(
-    'neighbors',
-    'Neighbor Digits',
-    150,
-    'Contains two neighboring digits',
-    function (n) {
-        const ds = digits(n);
+            return Object.values(counts)
+                .filter(c => c >= 2).length >= 2;
+        }],
 
-        for (
-            let i = 1;
-            i < ds.length;
-            i++
-        ) {
-            if (
-                Math.abs(
-                    ds[i] - ds[i - 1]
-                ) === 1
-            ) {
-                return true;
-            }
-        }
+    ['alternating', 'Alternating', 800, 'Digits alternate between two groups',
+        n => {
+            const d = digits(n);
 
-        return false;
-    }
-);
+            return d.every((x, i) =>
+                i === 0 ||
+                x % 2 !== d[i - 1] % 2
+            );
+        }],
 
-addBadge(
-    'hetero',
-    'Heterogeneous',
-    100,
-    'Contains at least four different digits',
-    function (n) {
-        return new Set(digits(n)).size >= 4;
-    }
-);
+    ['spacing', 'Equal Spacing', 1800, 'Digits have equal spacing',
+        n => {
+            const d = digits(n);
+            const diff = d[1] - d[0];
 
-addBadge(
-    'harshad',
-    'Harshad',
-    500,
-    'Divisible by its digit sum',
-    function (n) {
-        const sum =
-            digitSum(digits(n));
-
-        return (
-            sum > 0 &&
-            n % sum === 0
-        );
-    }
-);
-
-addBadge(
-    'square',
-    'Perfect Square',
-    1000,
-    'The number is a perfect square',
-    function (n) {
-        const root =
-            Math.floor(Math.sqrt(n));
-
-        return root * root === n;
-    }
-);
-
-addBadge(
-    'power2',
-    'Power of 2',
-    1500,
-    'The number is a power of two',
-    function (n) {
-        return isPower(n, 2);
-    }
-);
-
-addBadge(
-    'power3',
-    'Power of 3',
-    2500,
-    'The number is a power of three',
-    function (n) {
-        return isPower(n, 3);
-    }
-);
-
-addBadge(
-    'fibonacci',
-    'Fibonacci',
-    1200,
-    'The number is in the Fibonacci sequence',
-    function (n) {
-        return isFibonacci(n);
-    }
-);
-
-addBadge(
-    'factorial',
-    'Factorial',
-    3500,
-    'The number is a factorial',
-    function (n) {
-        for (let i = 0; i <= 10; i++) {
-            if (factorial(i) === n) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-);
-
-addBadge(
-    'triple',
-    'Triple Digit',
-    800,
-    'Contains three identical digits',
-    function (n) {
-        const ds = digits(n);
-
-        for (
-            let i = 0;
-            i < ds.length - 2;
-            i++
-        ) {
-            if (
-                ds[i] === ds[i + 1] &&
-                ds[i] === ds[i + 2]
-            ) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-);
-
-addBadge(
-    'quad',
-    'Quad Digit',
-    3000,
-    'Contains four identical digits',
-    function (n) {
-        const ds = digits(n);
-
-        for (
-            let i = 0;
-            i < ds.length - 3;
-            i++
-        ) {
-            if (
-                ds[i] === ds[i + 1] &&
-                ds[i] === ds[i + 2] &&
-                ds[i] === ds[i + 3]
-            ) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-);
-
-addBadge(
-    'twoPair',
-    'Two Pair',
-    700,
-    'Contains two separate digit pairs',
-    function (n) {
-        const ds = digits(n);
-        const counts = {};
-
-        ds.forEach(function (digit) {
-            counts[digit] =
-                (counts[digit] || 0) + 1;
-        });
-
-        return Object.values(counts)
-            .filter(function (count) {
-                return count >= 2;
-            }).length >= 2;
-    }
-);
-
-addBadge(
-    'alternating',
-    'Alternating',
-    800,
-    'Digits alternate between two groups',
-    function (n) {
-        const ds = digits(n);
-
-        let evenOdd = true;
-        let oddEven = true;
-
-        for (
-            let i = 1;
-            i < ds.length;
-            i++
-        ) {
-            if (
-                ds[i] % 2 ===
-                ds[i - 1] % 2
-            ) {
-                evenOdd = false;
-                oddEven = false;
-                break;
-            }
-        }
-
-        return evenOdd || oddEven;
-    }
-);
-
-addBadge(
-    'spacing',
-    'Equal Spacing',
-    1800,
-    'Digits have equal spacing',
-    function (n) {
-        const ds = digits(n);
-        const difference =
-            ds[1] - ds[0];
-
-        for (
-            let i = 2;
-            i < ds.length;
-            i++
-        ) {
-            if (
-                ds[i] - ds[i - 1] !==
-                difference
-            ) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-);
+            return d.every((x, i) =>
+                i < 2 || x - d[i - 1] === diff
+            );
+        }]
+].forEach(b => addBadge(...b));
 
 
 /* ---------------- Digit sums ---------------- */
 
-addBadge(
-    'sum7',
-    'Digit Sum 7',
-    400,
-    'Digits add to 7',
-    function (n) {
-        return digitSum(digits(n)) === 7;
-    }
-);
-
-addBadge(
-    'sum10',
-    'Digit Sum 10',
-    500,
-    'Digits add to 10',
-    function (n) {
-        return digitSum(digits(n)) === 10;
-    }
-);
-
-addBadge(
-    'sum15',
-    'Digit Sum 15',
-    700,
-    'Digits add to 15',
-    function (n) {
-        return digitSum(digits(n)) === 15;
-    }
-);
-
-addBadge(
-    'sum20',
-    'Digit Sum 20',
-    900,
-    'Digits add to 20',
-    function (n) {
-        return digitSum(digits(n)) === 20;
-    }
-);
-
-addBadge(
-    'sum25',
-    'Digit Sum 25',
-    1000,
-    'Digits add to 25',
-    function (n) {
-        return digitSum(digits(n)) === 25;
-    }
-);
-
-addBadge(
-    'sum30',
-    'Digit Sum 30',
-    2000,
-    'Digits add to 30',
-    function (n) {
-        return digitSum(digits(n)) === 30;
-    }
-);
-
-addBadge(
-    'sum35',
-    'Digit Sum 35',
-    1500,
-    'Digits add to 35',
-    function (n) {
-        return digitSum(digits(n)) === 35;
-    }
-);
-
-addBadge(
-    'sum40',
-    'Digit Sum 40',
-    2500,
-    'Digits add to 40',
-    function (n) {
-        return digitSum(digits(n)) === 40;
-    }
-);
-
-addBadge(
-    'sum42',
-    'Digit Sum 42',
-    1800,
-    'Digits add to 42',
-    function (n) {
-        return digitSum(digits(n)) === 42;
-    }
-);
-
-addBadge(
-    'sum45',
-    'Digit Sum 45',
-    4000,
-    'Digits add to 45',
-    function (n) {
-        return digitSum(digits(n)) === 45;
-    }
+[
+    [7, 400],
+    [10, 500],
+    [15, 700],
+    [20, 900],
+    [25, 1000],
+    [30, 2000],
+    [35, 1500],
+    [40, 2500],
+    [42, 1800],
+    [45, 4000]
+].forEach(([sum, ep]) =>
+    addBadge(
+        `sum${sum}`,
+        `Digit Sum ${sum}`,
+        ep,
+        `Digits add to ${sum}`,
+        n => digitSum(digits(n)) === sum
+    )
 );
 
 
 /* ---------------- Digit patterns ---------------- */
 
-addBadge(
-    'lucky13',
-    'Lucky 13',
-    700,
-    'Contains 13',
-    function (n) {
-        return pad(n).includes('13');
-    }
+[
+    ['lucky13', 'Lucky 13', 700, 'Contains 13', '13'],
+    ['contains7', 'Contains 7', 500, 'Contains the digit 7', '7'],
+    ['contains69', 'Contains 69', 1200, 'Contains 69', '69'],
+    ['contains123', 'Contains 123', 1500, 'Contains 123', '123'],
+    ['contains456', 'Contains 456', 1500, 'Contains 456', '456'],
+    ['contains789', 'Contains 789', 1500, 'Contains 789', '789'],
+    ['contains987', 'Contains 987', 1500, 'Contains 987', '987']
+].forEach(([id, name, ep, desc, text]) =>
+    addBadge(
+        id,
+        name,
+        ep,
+        desc,
+        n => pad(n).includes(text)
+    )
 );
 
-addBadge(
-    'contains7',
-    'Contains 7',
-    500,
-    'Contains the digit 7',
-    function (n) {
-        return pad(n).includes('7');
-    }
-);
-
-addBadge(
-    'contains69',
-    'Contains 69',
-    1200,
-    'Contains 69',
-    function (n) {
-        return pad(n).includes('69');
-    }
-);
-
-addBadge(
-    'contains123',
-    'Contains 123',
-    1500,
-    'Contains 123',
-    function (n) {
-        return pad(n).includes('123');
-    }
-);
-
-addBadge(
-    'contains456',
-    'Contains 456',
-    1500,
-    'Contains 456',
-    function (n) {
-        return pad(n).includes('456');
-    }
-);
-
-addBadge(
-    'contains789',
-    'Contains 789',
-    1500,
-    'Contains 789',
-    function (n) {
-        return pad(n).includes('789');
-    }
-);
-
-addBadge(
-    'contains987',
-    'Contains 987',
-    1500,
-    'Contains 987',
-    function (n) {
-        return pad(n).includes('987');
-    }
-);
 
 addBadge(
     'sixdigits',
     'Six Digits',
     5,
     'A full six-digit number',
-    function (n) {
-        return n >= 100000;
-    }
+    n => n >= 100000
 );
 
 addBadge(
@@ -1325,111 +743,39 @@ addBadge(
     'Five Zeros',
     5000,
     'Contains five zeros',
-    function (n) {
-        return digits(n).filter(
-            function (d) {
-                return d === 0;
-            }
-        ).length >= 5;
-    }
+    n => digits(n).filter(d => d === 0).length >= 5
 );
 
-addBadge(
-    'alllow',
-    'All Low',
-    1000,
-    'Every digit is 0–4',
-    function (n) {
-        return digits(n).every(
-            function (d) {
-                return d <= 4;
-            }
-        );
-    }
+
+[
+    ['alllow', 'All Low', 1000, 'Every digit is 0–4', d => d <= 4],
+    ['allhigh', 'All High', 1000, 'Every digit is 5–9', d => d >= 5],
+    ['allEven', 'All Even', 1200, 'Every digit is even', d => d % 2 === 0],
+    ['allOdd', 'All Odd', 1200, 'Every digit is odd', d => d % 2 === 1]
+].forEach(([id, name, ep, desc, test]) =>
+    addBadge(
+        id,
+        name,
+        ep,
+        desc,
+        n => digits(n).every(test)
+    )
 );
 
-addBadge(
-    'allhigh',
-    'All High',
-    1000,
-    'Every digit is 5–9',
-    function (n) {
-        return digits(n).every(
-            function (d) {
-                return d >= 5;
-            }
-        );
-    }
-);
 
-addBadge(
-    'allEven',
-    'All Even',
-    1200,
-    'Every digit is even',
-    function (n) {
-        return digits(n).every(
-            function (d) {
-                return d % 2 === 0;
-            }
-        );
-    }
-);
-
-addBadge(
-    'allOdd',
-    'All Odd',
-    1200,
-    'Every digit is odd',
-    function (n) {
-        return digits(n).every(
-            function (d) {
-                return d % 2 === 1;
-            }
-        );
-    }
-);
-
-addBadge(
-    'allunique',
-    'All Unique',
-    1200,
-    'Every digit is different',
-    function (n) {
-        const ds = digits(n);
-
-        return new Set(ds).size === 6;
-    }
-);
-
-addBadge(
-    'fourUnique',
-    'Four Unique',
-    800,
-    'Exactly four unique digits',
-    function (n) {
-        return new Set(digits(n)).size === 4;
-    }
-);
-
-addBadge(
-    'fiveUnique',
-    'Five Unique',
-    1200,
-    'Exactly five unique digits',
-    function (n) {
-        return new Set(digits(n)).size === 5;
-    }
-);
-
-addBadge(
-    'threeunique',
-    'Three Unique',
-    100,
-    'Exactly three unique digits',
-    function (n) {
-        return new Set(digits(n)).size === 3;
-    }
+[
+    ['allunique', 'All Unique', 1200, 'Every digit is different', 6],
+    ['fourUnique', 'Four Unique', 800, 'Exactly four unique digits', 4],
+    ['fiveUnique', 'Five Unique', 1200, 'Exactly five unique digits', 5],
+    ['threeunique', 'Three Unique', 100, 'Exactly three unique digits', 3]
+].forEach(([id, name, ep, desc, count]) =>
+    addBadge(
+        id,
+        name,
+        ep,
+        desc,
+        n => new Set(digits(n)).size === count
+    )
 );
 
 
@@ -1440,13 +786,9 @@ addBadge(
     'Center 7',
     800,
     'Middle digit is 7',
-    function (n) {
-        const ds = digits(n);
-
-        return (
-            ds[2] === 7 ||
-            ds[3] === 7
-        );
+    n => {
+        const d = digits(n);
+        return d[2] === 7 || d[3] === 7;
     }
 );
 
@@ -1455,10 +797,9 @@ addBadge(
     'Matching Ends',
     600,
     'First and last digits match',
-    function (n) {
-        const ds = digits(n);
-
-        return ds[0] === ds[5];
+    n => {
+        const d = digits(n);
+        return d[0] === d[5];
     }
 );
 
@@ -1467,13 +808,9 @@ addBadge(
     'Outer Equal',
     1600,
     'Outer digit pairs match',
-    function (n) {
-        const ds = digits(n);
-
-        return (
-            ds[0] === ds[5] &&
-            ds[1] === ds[4]
-        );
+    n => {
+        const d = digits(n);
+        return d[0] === d[5] && d[1] === d[4];
     }
 );
 
@@ -1482,10 +819,9 @@ addBadge(
     'Middle Equal',
     1000,
     'Two middle digits match',
-    function (n) {
-        const ds = digits(n);
-
-        return ds[2] === ds[3];
+    n => {
+        const d = digits(n);
+        return d[2] === d[3];
     }
 );
 
@@ -1494,131 +830,55 @@ addBadge(
     'Center Double Zero',
     1500,
     'Middle two digits are 00',
-    function (n) {
-        const ds = digits(n);
-
-        return (
-            ds[2] === 0 &&
-            ds[3] === 0
-        );
+    n => {
+        const d = digits(n);
+        return d[2] === 0 && d[3] === 0;
     }
 );
 
-addBadge(
-    'firstnine',
-    'Starts 9',
-    500,
-    'Starts with 9',
-    function (n) {
-        return pad(n).startsWith('9');
-    }
-);
 
-addBadge(
-    'lastnine',
-    'Ends 9',
-    500,
-    'Ends with 9',
-    function (n) {
-        return pad(n).endsWith('9');
-    }
-);
-
-addBadge(
-    'firstzero',
-    'Leading Zero',
-    500,
-    'Starts with 0',
-    function (n) {
-        return pad(n).startsWith('0');
-    }
-);
-
-addBadge(
-    'starts69',
-    'Starts 69',
-    2500,
-    'First two digits are 69',
-    function (n) {
-        return pad(n).startsWith('69');
-    }
-);
-
-addBadge(
-    'ends69',
-    'Ends 69',
-    2500,
-    'Last two digits are 69',
-    function (n) {
-        return pad(n).endsWith('69');
-    }
+[
+    ['firstnine', 'Starts 9', 500, 'Starts with 9', s => s.startsWith('9')],
+    ['lastnine', 'Ends 9', 500, 'Ends with 9', s => s.endsWith('9')],
+    ['firstzero', 'Leading Zero', 500, 'Starts with 0', s => s.startsWith('0')],
+    ['starts69', 'Starts 69', 2500, 'First two digits are 69', s => s.startsWith('69')],
+    ['ends69', 'Ends 69', 2500, 'Last two digits are 69', s => s.endsWith('69')]
+].forEach(([id, name, ep, desc, test]) =>
+    addBadge(
+        id,
+        name,
+        ep,
+        desc,
+        n => test(pad(n))
+    )
 );
 
 
 /* ---------------- Special digits ---------------- */
 
-addBadge(
-    'doublezero',
-    'Double Zero',
-    900,
-    'Contains 00',
-    function (n) {
-        return pad(n).includes('00');
-    }
+[
+    ['doublezero', 'Double Zero', 900, 'Contains 00', '00'],
+    ['triplezero', 'Triple Zero', 3500, 'Contains 000', '000'],
+    ['doublefive', 'Double Five', 800, 'Contains 55', '55'],
+    ['doubleeight', 'Double Eight', 800, 'Contains 88', '88'],
+    ['doubleone', 'Double One', 800, 'Contains 11', '11']
+].forEach(([id, name, ep, desc, text]) =>
+    addBadge(
+        id,
+        name,
+        ep,
+        desc,
+        n => pad(n).includes(text)
+    )
 );
 
-addBadge(
-    'triplezero',
-    'Triple Zero',
-    3500,
-    'Contains 000',
-    function (n) {
-        return pad(n).includes('000');
-    }
-);
-
-addBadge(
-    'doublefive',
-    'Double Five',
-    800,
-    'Contains 55',
-    function (n) {
-        return pad(n).includes('55');
-    }
-);
-
-addBadge(
-    'doubleeight',
-    'Double Eight',
-    800,
-    'Contains 88',
-    function (n) {
-        return pad(n).includes('88');
-    }
-);
-
-addBadge(
-    'doubleone',
-    'Double One',
-    800,
-    'Contains 11',
-    function (n) {
-        return pad(n).includes('11');
-    }
-);
 
 addBadge(
     'product0',
     'Zero Product',
     50,
     'Digit product is zero',
-    function (n) {
-        return (
-            productOfDigits(
-                digits(n)
-            ) === 0
-        );
-    }
+    n => productOfDigits(digits(n)) === 0
 );
 
 addBadge(
@@ -1626,13 +886,7 @@ addBadge(
     'Product 1',
     1500,
     'Digit product equals 1',
-    function (n) {
-        return (
-            productOfDigits(
-                digits(n)
-            ) === 1
-        );
-    }
+    n => productOfDigits(digits(n)) === 1
 );
 
 
@@ -1643,15 +897,15 @@ addBadge(
     'ABABAB',
     7000,
     'Alternating repeating pair',
-    function (n) {
-        const ds = digits(n);
+    n => {
+        const d = digits(n);
 
         return (
-            ds[0] === ds[2] &&
-            ds[2] === ds[4] &&
-            ds[1] === ds[3] &&
-            ds[3] === ds[5] &&
-            ds[0] !== ds[1]
+            d[0] === d[2] &&
+            d[2] === d[4] &&
+            d[1] === d[3] &&
+            d[3] === d[5] &&
+            d[0] !== d[1]
         );
     }
 );
@@ -1661,13 +915,13 @@ addBadge(
     'Mirror Pair',
     4000,
     'ABC|CBA style pattern',
-    function (n) {
-        const ds = digits(n);
+    n => {
+        const d = digits(n);
 
         return (
-            ds[0] === ds[5] &&
-            ds[1] === ds[4] &&
-            ds[2] === ds[3]
+            d[0] === d[5] &&
+            d[1] === d[4] &&
+            d[2] === d[3]
         );
     }
 );
@@ -1677,23 +931,11 @@ addBadge(
     'Stair Up',
     7000,
     'Six consecutive ascending digits',
-    function (n) {
-        const ds = digits(n);
-
-        for (
-            let i = 1;
-            i < ds.length;
-            i++
-        ) {
-            if (
-                ds[i] !==
-                ds[i - 1] + 1
-            ) {
-                return false;
-            }
-        }
-
-        return true;
+    n => {
+        const d = digits(n);
+        return d.every((x, i) =>
+            i === 0 || x === d[i - 1] + 1
+        );
     }
 );
 
@@ -1702,23 +944,11 @@ addBadge(
     'Stair Down',
     7000,
     'Six consecutive descending digits',
-    function (n) {
-        const ds = digits(n);
-
-        for (
-            let i = 1;
-            i < ds.length;
-            i++
-        ) {
-            if (
-                ds[i] !==
-                ds[i - 1] - 1
-            ) {
-                return false;
-            }
-        }
-
-        return true;
+    n => {
+        const d = digits(n);
+        return d.every((x, i) =>
+            i === 0 || x === d[i - 1] - 1
+        );
     }
 );
 
@@ -1727,13 +957,7 @@ addBadge(
     'Binary Digits',
     5000,
     'Only contains 0 and 1',
-    function (n) {
-        return digits(n).every(
-            function (d) {
-                return d === 0 || d === 1;
-            }
-        );
-    }
+    n => digits(n).every(d => d === 0 || d === 1)
 );
 
 addBadge(
@@ -1741,15 +965,15 @@ addBadge(
     'Double Pair Chain',
     3000,
     'AABBCC pattern',
-    function (n) {
-        const ds = digits(n);
+    n => {
+        const d = digits(n);
 
         return (
-            ds[0] === ds[1] &&
-            ds[2] === ds[3] &&
-            ds[4] === ds[5] &&
-            ds[0] !== ds[2] &&
-            ds[2] !== ds[4]
+            d[0] === d[1] &&
+            d[2] === d[3] &&
+            d[4] === d[5] &&
+            d[0] !== d[2] &&
+            d[2] !== d[4]
         );
     }
 );
@@ -1759,15 +983,15 @@ addBadge(
     'Double Triple',
     9000,
     'AAABBB pattern',
-    function (n) {
-        const ds = digits(n);
+    n => {
+        const d = digits(n);
 
         return (
-            ds[0] === ds[1] &&
-            ds[1] === ds[2] &&
-            ds[3] === ds[4] &&
-            ds[4] === ds[5] &&
-            ds[0] !== ds[3]
+            d[0] === d[1] &&
+            d[1] === d[2] &&
+            d[3] === d[4] &&
+            d[4] === d[5] &&
+            d[0] !== d[3]
         );
     }
 );
@@ -1777,13 +1001,9 @@ addBadge(
     'First Triple',
     3500,
     'First three digits match',
-    function (n) {
-        const ds = digits(n);
-
-        return (
-            ds[0] === ds[1] &&
-            ds[1] === ds[2]
-        );
+    n => {
+        const d = digits(n);
+        return d[0] === d[1] && d[1] === d[2];
     }
 );
 
@@ -1792,380 +1012,74 @@ addBadge(
     'Last Triple',
     3500,
     'Last three digits match',
-    function (n) {
-        const ds = digits(n);
-
-        return (
-            ds[3] === ds[4] &&
-            ds[4] === ds[5]
-        );
+    n => {
+        const d = digits(n);
+        return d[3] === d[4] && d[4] === d[5];
     }
 );
 
 
 /* ---------------- Exact numbers ---------------- */
 
-addBadge(
-    'exact0',
-    'Zero',
-    50000,
-    'Exactly 0',
-    function (n) {
-        return n === 0;
-    }
-);
-
-addBadge(
-    'exact1',
-    'One',
-    30000,
-    'Exactly 1',
-    function (n) {
-        return n === 1;
-    }
-);
-
-addBadge(
-    'exact2',
-    'Two',
-    20000,
-    'Exactly 2',
-    function (n) {
-        return n === 2;
-    }
-);
-
-addBadge(
-    'exact3',
-    'Three',
-    20000,
-    'Exactly 3',
-    function (n) {
-        return n === 3;
-    }
-);
-
-addBadge(
-    'exact7',
-    'Seven',
-    30000,
-    'Exactly 7',
-    function (n) {
-        return n === 7;
-    }
-);
-
-addBadge(
-    'exact8',
-    'Eight',
-    15000,
-    'Exactly 8',
-    function (n) {
-        return n === 8;
-    }
-);
-
-addBadge(
-    'exact9',
-    'Nine',
-    15000,
-    'Exactly 9',
-    function (n) {
-        return n === 9;
-    }
-);
-
-addBadge(
-    'exact67',
-    'The 67',
-    20000,
-    'Exactly 67',
-    function (n) {
-        return n === 67;
-    }
-);
-
-addBadge(
-    'exact100',
-    '100',
-    5000,
-    'Exactly 100',
-    function (n) {
-        return n === 100;
-    }
-);
-
-addBadge(
-    'exact69',
-    '69',
-    8000,
-    'Exactly 69',
-    function (n) {
-        return n === 69;
-    }
-);
-
-addBadge(
-    'exact420',
-    '420',
-    10000,
-    'Exactly 420',
-    function (n) {
-        return n === 420;
-    }
-);
-
-addBadge(
-    'exact123',
-    '123',
-    6000,
-    'Exactly 123',
-    function (n) {
-        return n === 123;
-    }
-);
-
-addBadge(
-    'exact321',
-    '321',
-    6000,
-    'Exactly 321',
-    function (n) {
-        return n === 321;
-    }
-);
-
-addBadge(
-    'exact123456',
-    '123456',
-    500000,
-    'Exactly 123456',
-    function (n) {
-        return n === 123456;
-    }
-);
-
-addBadge(
-    'exact654321',
-    '654321',
-    500000,
-    'Exactly 654321',
-    function (n) {
-        return n === 654321;
-    }
-);
-
-addBadge(
-    'exact111111',
-    '111111',
-    300000,
-    'Exactly 111111',
-    function (n) {
-        return n === 111111;
-    }
-);
-
-addBadge(
-    'exact222222',
-    '222222',
-    280000,
-    'Exactly 222222',
-    function (n) {
-        return n === 222222;
-    }
-);
-
-addBadge(
-    'exact333333',
-    '333333',
-    280000,
-    'Exactly 333333',
-    function (n) {
-        return n === 333333;
-    }
-);
-
-addBadge(
-    'exact420420',
-    '420420',
-    450000,
-    'Exactly 420420',
-    function (n) {
-        return n === 420420;
-    }
-);
-
-addBadge(
-    'exact696969',
-    '696969',
-    650000,
-    'Exactly 696969',
-    function (n) {
-        return n === 696969;
-    }
-);
-
-addBadge(
-    'exact777777',
-    '777777',
-    700000,
-    'Exactly 777777',
-    function (n) {
-        return n === 777777;
-    }
-);
-
-addBadge(
-    'exact999999',
-    '999999',
-    740000,
-    'Exactly 999999',
-    function (n) {
-        return n === 999999;
-    }
-);
-
-addBadge(
-    'exact101010',
-    '101010',
-    350000,
-    'Exactly 101010',
-    function (n) {
-        return n === 101010;
-    }
-);
-
-addBadge(
-    'exact314159',
-    '314159',
-    350000,
-    'Exactly 314159',
-    function (n) {
-        return n === 314159;
-    }
-);
-
-addBadge(
-    'exact271828',
-    '271828',
-    350000,
-    'Exactly 271828',
-    function (n) {
-        return n === 271828;
-    }
-);
-
-addBadge(
-    'exact867530',
-    '867530',
-    300000,
-    'Exactly 867530',
-    function (n) {
-        return n === 867530;
-    }
-);
-
-addBadge(
-    'exact123321',
-    '123321',
-    250000,
-    'Exactly 123321',
-    function (n) {
-        return n === 123321;
-    }
-);
-
-addBadge(
-    'exact100001',
-    '100001',
-    220000,
-    'Exactly 100001',
-    function (n) {
-        return n === 100001;
-    }
-);
-
-addBadge(
-    'exact808080',
-    '808080',
-    250000,
-    'Exactly 808080',
-    function (n) {
-        return n === 808080;
-    }
+[
+    ['exact0', 'Zero', 50000, 0],
+    ['exact1', 'One', 30000, 1],
+    ['exact2', 'Two', 20000, 2],
+    ['exact3', 'Three', 20000, 3],
+    ['exact7', 'Seven', 30000, 7],
+    ['exact8', 'Eight', 15000, 8],
+    ['exact9', 'Nine', 15000, 9],
+    ['exact67', 'The 67', 20000, 67],
+    ['exact100', '100', 5000, 100],
+    ['exact69', '69', 8000, 69],
+    ['exact420', '420', 10000, 420],
+    ['exact123', '123', 6000, 123],
+    ['exact321', '321', 6000, 321],
+    ['exact123456', '123456', 500000, 123456],
+    ['exact654321', '654321', 500000, 654321],
+    ['exact111111', '111111', 300000, 111111],
+    ['exact222222', '222222', 280000, 222222],
+    ['exact333333', '333333', 280000, 333333],
+    ['exact420420', '420420', 450000, 420420],
+    ['exact696969', '696969', 650000, 696969],
+    ['exact777777', '777777', 700000, 777777],
+    ['exact999999', '999999', 740000, 999999],
+    ['exact101010', '101010', 350000, 101010],
+    ['exact314159', '314159', 350000, 314159],
+    ['exact271828', '271828', 350000, 271828],
+    ['exact867530', '867530', 300000, 867530],
+    ['exact123321', '123321', 250000, 123321],
+    ['exact100001', '100001', 220000, 100001],
+    ['exact808080', '808080', 250000, 808080]
+].forEach(([id, name, ep, number]) =>
+    addBadge(
+        id,
+        name,
+        ep,
+        `Exactly ${number}`,
+        n => n === number
+    )
 );
 
 
 /* ---------------- All same ---------------- */
 
-addBadge(
-    'allseven',
-    '777777',
-    100000,
-    'Every digit is 7',
-    function (n) {
-        return pad(n) === '777777';
-    }
-);
-
-addBadge(
-    'allzero',
-    '000000',
-    50000,
-    'Every digit is 0',
-    function (n) {
-        return pad(n) === '000000';
-    }
-);
-
-addBadge(
-    'allnine',
-    '999999',
-    60000,
-    'Every digit is 9',
-    function (n) {
-        return pad(n) === '999999';
-    }
-);
-
-addBadge(
-    'alltwo',
-    '222222',
-    50000,
-    'Every digit is 2',
-    function (n) {
-        return pad(n) === '222222';
-    }
-);
-
-addBadge(
-    'allthree',
-    '333333',
-    50000,
-    'Every digit is 3',
-    function (n) {
-        return pad(n) === '333333';
-    }
-);
-
-addBadge(
-    'allfive',
-    '555555',
-    50000,
-    'Every digit is 5',
-    function (n) {
-        return pad(n) === '555555';
-    }
-);
-
-addBadge(
-    'allone',
-    '111111',
-    50000,
-    'Every digit is 1',
-    function (n) {
-        return pad(n) === '111111';
-    }
+[
+    ['allseven', '777777', 100000],
+    ['allzero', '000000', 50000],
+    ['allnine', '999999', 60000],
+    ['alltwo', '222222', 50000],
+    ['allthree', '333333', 50000],
+    ['allfive', '555555', 50000],
+    ['allone', '111111', 50000]
+].forEach(([id, name, ep]) =>
+    addBadge(
+        id,
+        name,
+        ep,
+        `Every digit is ${name[0]}`,
+        n => pad(n) === name
+    )
 );
 
 
@@ -2174,72 +1088,60 @@ addBadge(
 ================================================== */
 
 function getBadges(number) {
-    const result = [];
-
-    for (const badge of badgeDefinitions) {
-        let matched = false;
-
+    return badgeDefinitions.filter(badge => {
         try {
-            matched = badge.test(number);
+            return badge.test(number);
         } catch (error) {
             console.error(
                 'Badge error:',
                 badge.id,
                 error
             );
-        }
 
-        if (matched) {
-            result.push(badge);
+            return false;
         }
-    }
-
-    return result;
+    });
 }
 
 
 function analyze(number) {
     const badges = getBadges(number);
 
-    let ep = rollBaseEP();
-
-    for (const badge of badges) {
-        ep += badge.ep;
-    }
+    let ep =
+        rollBaseEP() +
+        badges.reduce(
+            (sum, badge) => sum + badge.ep,
+            0
+        );
 
     if (Math.random() < 0.01) {
         ep += 50;
     }
 
-    const rarity =
-        getRarityFromEP(ep);
-
     return {
-        ep: ep,
-        rarity: rarity,
-        badges: badges
+        ep,
+        rarity: getRarityFromEP(ep),
+        badges
     };
 }
 
-
-/* ==================================================
-   BADGE UNLOCKS
-================================================== */
 
 function processBadges(badges) {
     const newBadges = [];
 
     for (const badge of badges) {
-        if (!state.foundBadges[badge.id]) {
-            state.foundBadges[badge.id] = {
-                name: badge.name,
-                ep: badge.ep,
-                description: badge.description,
-                unlockedAt: Date.now()
-            };
-
-            newBadges.push(badge);
+        if (state.foundBadges[badge.id]) {
+            continue;
         }
+
+        state.foundBadges[badge.id] = {
+            name: badge.name,
+            ep: badge.ep,
+            description: badge.description,
+            unlockedAt: Date.now()
+        };
+
+        newBadges.push(badge);
     }
 
     return newBadges;
@@ -2250,33 +1152,26 @@ function processBadges(badges) {
    ROLL
 ================================================== */
 
-async function roll(fromAuto) {
+async function roll() {
     if (rollLocked) {
         return null;
     }
 
     rollLocked = true;
 
-    const rollButton = $('rollBtn');
+    const button = $('rollBtn');
 
-    if (rollButton) {
-        rollButton.disabled = true;
+    if (button) {
+        button.disabled = true;
     }
 
     try {
-        const number = randomInt(
-            0,
-            MAX_NUMBER
-        );
-
+        const number = randomInt(0, MAX_NUMBER);
         const result = analyze(number);
+        const newBadges = processBadges(result.badges);
+        const rarity = result.rarity.id;
 
-        const newBadges =
-            processBadges(
-                result.badges
-            );
-
-        state.totalRolls += 1;
+        state.totalRolls++;
         state.totalEp += result.ep;
 
         if (result.ep > state.bestEp) {
@@ -2284,68 +1179,36 @@ async function roll(fromAuto) {
             state.bestNumber = number;
         }
 
-        const rarityId =
-            result.rarity.id;
+        state.rarityCounts[rarity] =
+            (state.rarityCounts[rarity] || 0) + 1;
 
-        if (
-            state.rarityCounts[rarityId] ===
-            undefined
-        ) {
-            state.rarityCounts[rarityId] = 0;
-        }
-
-        state.rarityCounts[rarityId] += 1;
-
-        if (rarityId === 'EPIC') {
-            state.epics += 1;
-        }
-
-        if (rarityId === 'ANOMALY') {
-            state.anomalies += 1;
-        }
-
-        if (rarityId === 'MYTHIC') {
-            state.mythics += 1;
-        }
-
-        if (rarityId === 'HOLY') {
-            state.holys += 1;
-        }
+        if (rarity === 'EPIC') state.epics++;
+        if (rarity === 'ANOMALY') state.anomalies++;
+        if (rarity === 'MYTHIC') state.mythics++;
+        if (rarity === 'HOLY') state.holys++;
 
         const historyEntry = {
-            number: number,
+            number,
             ep: result.ep,
-            rarity: rarityId,
-            badges: result.badges.map(
-                function (badge) {
-                    return badge.id;
-                }
-            ),
+            rarity,
+            badges: result.badges.map(b => b.id),
             time: Date.now()
         };
 
-        state.history.unshift(
-            historyEntry
-        );
+        state.history.unshift(historyEntry);
+        state.history = state.history.slice(0, MAX_HISTORY);
 
-        state.history =
-            state.history.slice(
-                0,
-                MAX_HISTORY
-            );
+        const rare =
+            rarity === 'ANOMALY' ||
+            rarity === 'MYTHIC' ||
+            rarity === 'HOLY';
 
         const rarePause =
-            rarityId === 'MYTHIC' ||
-            rarityId === 'HOLY';
+            rarity === 'MYTHIC' ||
+            rarity === 'HOLY';
 
-        if (
-            rarityId === 'ANOMALY' ||
-            rarityId === 'MYTHIC' ||
-            rarityId === 'HOLY'
-        ) {
-            state.rareHistory.unshift(
-                historyEntry
-            );
+        if (rare) {
+            state.rareHistory.unshift(historyEntry);
 
             state.rareHistory =
                 state.rareHistory.slice(
@@ -2355,90 +1218,48 @@ async function roll(fromAuto) {
         }
 
         renderAll();
-
         saveLocal();
         queueCloudSave();
-
         checkMilestones();
 
-        if (newBadges.length > 0) {
-            for (const badge of newBadges) {
-                showToast(
-                    'BADGE UNLOCKED',
-                    badge.name +
-                    '  +' +
-                    formatEP(badge.ep) +
-                    ' EP',
-                    'badge-toast'
-                );
-            }
-        }
-
-        if (rarityId === 'ANOMALY') {
+        for (const badge of newBadges) {
             showToast(
-                'ANOMALY!',
-                formatNumber(number) +
-                ' • ' +
-                formatEP(result.ep) +
-                ' EP',
-                'anomaly-toast'
+                'BADGE UNLOCKED',
+                `${badge.name}  +${formatEP(badge.ep)} EP`,
+                'badge-toast'
             );
-
-            playRareSound();
         }
 
-        if (rarityId === 'MYTHIC') {
+        if (rare) {
             showToast(
-                'MYTHIC!',
-                formatNumber(number) +
-                ' • ' +
-                formatEP(result.ep) +
-                ' EP',
-                'mythic-toast'
-            );
-
-            playRareSound();
-        }
-
-        if (rarityId === 'HOLY') {
-            showToast(
-                'HOLY!',
-                formatNumber(number) +
-                ' • ' +
-                formatEP(result.ep) +
-                ' EP',
-                'holy-toast'
+                rarity + '!',
+                `${formatNumber(number)} • ${formatEP(result.ep)} EP`,
+                rarity.toLowerCase() + '-toast'
             );
 
             playRareSound();
         }
 
         if (rarePause) {
-            document.body.classList.add(
-                rarityId.toLowerCase() +
-                '-flash'
-            );
+            const flashClass =
+                rarity.toLowerCase() + '-flash';
+
+            document.body.classList.add(flashClass);
 
             await sleep(3000);
 
-            document.body.classList.remove(
-                rarityId.toLowerCase() +
-                '-flash'
-            );
+            document.body.classList.remove(flashClass);
         }
 
         return {
-            number: number,
+            number,
             ep: result.ep,
             rarity: result.rarity,
             badges: result.badges,
-            rarePause: rarePause
+            rarePause
         };
     } catch (error) {
-        console.error(
-            'Roll error:',
-            error
-        );
+        console.error('Roll error:', error);
 
         showToast(
             'ERROR',
@@ -2450,8 +1271,8 @@ async function roll(fromAuto) {
     } finally {
         rollLocked = false;
 
-        if (rollButton) {
-            rollButton.disabled = false;
+        if (button) {
+            button.disabled = false;
         }
     }
 }
@@ -2462,37 +1283,29 @@ async function roll(fromAuto) {
 ================================================== */
 
 function sleep(ms) {
-    return new Promise(
-        function (resolve) {
-            setTimeout(resolve, ms);
-        }
-    );
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 
 async function autoRollLoop() {
     while (autoRunning) {
-        const result = await roll(true);
+        const result = await roll();
 
         if (!autoRunning) {
             break;
         }
 
-        if (
-            result &&
-            result.rarePause
-        ) {
+        if (result?.rarePause) {
             continue;
         }
 
-        const speedElement =
-            $('autoSpeed');
+        const speed = $('autoSpeed');
 
-        const delay = speedElement
-            ? Number(speedElement.value) || 500
-            : 500;
-
-        await sleep(delay);
+        await sleep(
+            speed
+                ? Number(speed.value) || 500
+                : 500
+        );
     }
 }
 
@@ -2500,33 +1313,21 @@ async function autoRollLoop() {
 function toggleAutoRoll() {
     const button = $('autoBtn');
 
-    if (autoRunning) {
-        autoRunning = false;
-
-        if (button) {
-            button.textContent =
-                'AUTO ROLL: OFF';
-
-            button.classList.remove(
-                'active'
-            );
-        }
-
-        return;
-    }
-
-    autoRunning = true;
+    autoRunning = !autoRunning;
 
     if (button) {
         button.textContent =
-            'AUTO ROLL: ON';
+            `AUTO ROLL: ${autoRunning ? 'ON' : 'OFF'}`;
 
-        button.classList.add(
-            'active'
+        button.classList.toggle(
+            'active',
+            autoRunning
         );
     }
 
-    autoRollLoop();
+    if (autoRunning) {
+        autoRollLoop();
+    }
 }
 
 
@@ -2534,740 +1335,162 @@ function toggleAutoRoll() {
    MILESTONES
 ================================================== */
 
-const MILESTONES = [
-
-    /* EP */
-
-    {
-        id: 'ep1000',
-        name: 'First Thousand',
-        description: 'Earn 1,000 total EP',
-        reward: 1000,
-        target: 1000,
-        progress: function () {
-            return state.totalEp;
-        },
-        test: function () {
-            return state.totalEp >= 1000;
-        }
-    },
-
-    {
-        id: 'ep5000',
-        name: 'Warming Up',
-        description: 'Earn 5,000 total EP',
-        reward: 1500,
-        target: 5000,
-        progress: function () {
-            return state.totalEp;
-        },
-        test: function () {
-            return state.totalEp >= 5000;
-        }
-    },
-
-    {
-        id: 'ep10000',
-        name: 'Getting Started',
-        description: 'Earn 10,000 total EP',
-        reward: 2500,
-        target: 10000,
-        progress: function () {
-            return state.totalEp;
-        },
-        test: function () {
-            return state.totalEp >= 10000;
-        }
-    },
-
-    {
-        id: 'ep25000',
-        name: 'Quarter Century',
-        description: 'Earn 25,000 total EP',
-        reward: 5000,
-        target: 25000,
-        progress: function () {
-            return state.totalEp;
-        },
-        test: function () {
-            return state.totalEp >= 25000;
-        }
-    },
-
-    {
-        id: 'ep100000',
-        name: 'Six Figures',
-        description: 'Earn 100,000 total EP',
-        reward: 10000,
-        target: 100000,
-        progress: function () {
-            return state.totalEp;
-        },
-        test: function () {
-            return state.totalEp >= 100000;
-        }
-    },
-
-    {
-        id: 'ep250000',
-        name: 'EP Veteran',
-        description: 'Earn 250,000 total EP',
-        reward: 25000,
-        target: 250000,
-        progress: function () {
-            return state.totalEp;
-        },
-        test: function () {
-            return state.totalEp >= 250000;
-        }
-    },
-
-    {
-        id: 'ep1000000',
-        name: 'Million EP',
-        description: 'Earn 1,000,000 total EP',
-        reward: 50000,
-        target: 1000000,
-        progress: function () {
-            return state.totalEp;
-        },
-        test: function () {
-            return state.totalEp >= 1000000;
-        }
-    },
-
-    {
-        id: 'ep2500000',
-        name: 'EP Tycoon',
-        description: 'Earn 2,500,000 total EP',
-        reward: 100000,
-        target: 2500000,
-        progress: function () {
-            return state.totalEp;
-        },
-        test: function () {
-            return state.totalEp >= 2500000;
-        }
-    },
-
-    {
-        id: 'ep10000000',
-        name: 'EP Legend',
-        description: 'Earn 10,000,000 total EP',
-        reward: 500000,
-        target: 10000000,
-        progress: function () {
-            return state.totalEp;
-        },
-        test: function () {
-            return state.totalEp >= 10000000;
-        }
-    },
+const MILESTONES = [];
 
 
-    /* ROLLS */
-
-    {
-        id: 'roll10',
-        name: 'Getting Lucky',
-        description: 'Roll 10 times',
-        reward: 100,
-        target: 10,
-        progress: function () {
-            return state.totalRolls;
-        },
-        test: function () {
-            return state.totalRolls >= 10;
-        }
-    },
-
-    {
-        id: 'roll100',
-        name: 'Roller',
-        description: 'Roll 100 times',
-        reward: 1000,
-        target: 100,
-        progress: function () {
-            return state.totalRolls;
-        },
-        test: function () {
-            return state.totalRolls >= 100;
-        }
-    },
-
-    {
-        id: 'roll500',
-        name: 'Persistent',
-        description: 'Roll 500 times',
-        reward: 2500,
-        target: 500,
-        progress: function () {
-            return state.totalRolls;
-        },
-        test: function () {
-            return state.totalRolls >= 500;
-        }
-    },
-
-    {
-        id: 'roll1000',
-        name: 'Dedicated',
-        description: 'Roll 1,000 times',
-        reward: 5000,
-        target: 1000,
-        progress: function () {
-            return state.totalRolls;
-        },
-        test: function () {
-            return state.totalRolls >= 1000;
-        }
-    },
-
-    {
-        id: 'roll2500',
-        name: 'Grinder',
-        description: 'Roll 2,500 times',
-        reward: 10000,
-        target: 2500,
-        progress: function () {
-            return state.totalRolls;
-        },
-        test: function () {
-            return state.totalRolls >= 2500;
-        }
-    },
-
-    {
-        id: 'roll10000',
-        name: 'Machine',
-        description: 'Roll 10,000 times',
-        reward: 25000,
-        target: 10000,
-        progress: function () {
-            return state.totalRolls;
-        },
-        test: function () {
-            return state.totalRolls >= 10000;
-        }
-    },
-
-    {
-        id: 'roll25000',
-        name: 'Unstoppable',
-        description: 'Roll 25,000 times',
-        reward: 50000,
-        target: 25000,
-        progress: function () {
-            return state.totalRolls;
-        },
-        test: function () {
-            return state.totalRolls >= 25000;
-        }
-    },
-
-    {
-        id: 'roll100000',
-        name: 'Roll Addict',
-        description: 'Roll 100,000 times',
-        reward: 150000,
-        target: 100000,
-        progress: function () {
-            return state.totalRolls;
-        },
-        test: function () {
-            return state.totalRolls >= 100000;
-        }
-    },
-
-    {
-        id: 'roll500000',
-        name: 'The Machine',
-        description: 'Roll 500,000 times',
-        reward: 500000,
-        target: 500000,
-        progress: function () {
-            return state.totalRolls;
-        },
-        test: function () {
-            return state.totalRolls >= 500000;
-        }
-    },
+function addMilestone(
+    id,
+    name,
+    description,
+    reward,
+    target,
+    getter
+) {
+    MILESTONES.push({
+        id,
+        name,
+        description,
+        reward,
+        target,
+        progress: getter,
+        test: () => getter() >= target
+    });
+}
 
 
-    /* BADGES */
-
-    {
-        id: 'badge1',
-        name: 'First Discovery',
-        description: 'Unlock 1 badge',
-        reward: 250,
-        target: 1,
-        progress: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length;
-        },
-        test: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length >= 1;
-        }
-    },
-
-    {
-        id: 'badge5',
-        name: 'Collector',
-        description: 'Unlock 5 badges',
-        reward: 2500,
-        target: 5,
-        progress: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length;
-        },
-        test: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length >= 5;
-        }
-    },
-
-    {
-        id: 'badge10',
-        name: 'Explorer',
-        description: 'Unlock 10 badges',
-        reward: 5000,
-        target: 10,
-        progress: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length;
-        },
-        test: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length >= 10;
-        }
-    },
-
-    {
-        id: 'badge15',
-        name: 'Badge Hunter',
-        description: 'Unlock 15 badges',
-        reward: 7500,
-        target: 15,
-        progress: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length;
-        },
-        test: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length >= 15;
-        }
-    },
-
-    {
-        id: 'badge25',
-        name: 'Badge Collector',
-        description: 'Unlock 25 badges',
-        reward: 15000,
-        target: 25,
-        progress: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length;
-        },
-        test: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length >= 25;
-        }
-    },
-
-    {
-        id: 'badge30',
-        name: 'Badge Master',
-        description: 'Unlock 30 badges',
-        reward: 25000,
-        target: 30,
-        progress: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length;
-        },
-        test: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length >= 30;
-        }
-    },
-
-    {
-        id: 'badge40',
-        name: 'Badge Expert',
-        description: 'Unlock 40 badges',
-        reward: 40000,
-        target: 40,
-        progress: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length;
-        },
-        test: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length >= 40;
-        }
-    },
-
-    {
-        id: 'badge50',
-        name: 'Completionist',
-        description: 'Unlock 50 badges',
-        reward: 75000,
-        target: 50,
-        progress: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length;
-        },
-        test: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length >= 50;
-        }
-    },
-
-    {
-        id: 'badge60',
-        name: 'Badge Elite',
-        description: 'Unlock 60 badges',
-        reward: 100000,
-        target: 60,
-        progress: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length;
-        },
-        test: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length >= 60;
-        }
-    },
-
-    {
-        id: 'badge75',
-        name: 'Badge Overlord',
-        description: 'Unlock 75 badges',
-        reward: 200000,
-        target: 75,
-        progress: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length;
-        },
-        test: function () {
-            return Object.keys(
-                state.foundBadges
-            ).length >= 75;
-        }
-    },
-
-
-    /* ANOMALIES */
-
-    {
-        id: 'anomaly1',
-        name: 'Something Strange',
-        description: 'Find 1 Anomaly',
-        reward: 10000,
-        target: 1,
-        progress: function () {
-            return state.anomalies;
-        },
-        test: function () {
-            return state.anomalies >= 1;
-        }
-    },
-
-    {
-        id: 'anomaly5',
-        name: 'Anomaly Seeker',
-        description: 'Find 5 Anomalies',
-        reward: 25000,
-        target: 5,
-        progress: function () {
-            return state.anomalies;
-        },
-        test: function () {
-            return state.anomalies >= 5;
-        }
-    },
-
-    {
-        id: 'anomaly10',
-        name: 'Anomaly Hunter',
-        description: 'Find 10 Anomalies',
-        reward: 50000,
-        target: 10,
-        progress: function () {
-            return state.anomalies;
-        },
-        test: function () {
-            return state.anomalies >= 10;
-        }
-    },
-
-    {
-        id: 'anomaly25',
-        name: 'Anomaly Master',
-        description: 'Find 25 Anomalies',
-        reward: 200000,
-        target: 25,
-        progress: function () {
-            return state.anomalies;
-        },
-        test: function () {
-            return state.anomalies >= 25;
-        }
-    },
-
-    {
-        id: 'anomaly50',
-        name: 'Anomaly Legend',
-        description: 'Find 50 Anomalies',
-        reward: 500000,
-        target: 50,
-        progress: function () {
-            return state.anomalies;
-        },
-        test: function () {
-            return state.anomalies >= 50;
-        }
-    },
-
-
-    /* MYTHICS */
-
-    {
-        id: 'mythic1',
-        name: 'Mythic Discovery',
-        description: 'Find 1 Mythic',
-        reward: 50000,
-        target: 1,
-        progress: function () {
-            return state.mythics;
-        },
-        test: function () {
-            return state.mythics >= 1;
-        }
-    },
-
-    {
-        id: 'mythic5',
-        name: 'Mythic Seeker',
-        description: 'Find 5 Mythics',
-        reward: 150000,
-        target: 5,
-        progress: function () {
-            return state.mythics;
-        },
-        test: function () {
-            return state.mythics >= 5;
-        }
-    },
-
-    {
-        id: 'mythic10',
-        name: 'Mythic Hunter',
-        description: 'Find 10 Mythics',
-        reward: 300000,
-        target: 10,
-        progress: function () {
-            return state.mythics;
-        },
-        test: function () {
-            return state.mythics >= 10;
-        }
-    },
-
-    {
-        id: 'mythic25',
-        name: 'Mythic Master',
-        description: 'Find 25 Mythics',
-        reward: 1000000,
-        target: 25,
-        progress: function () {
-            return state.mythics;
-        },
-        test: function () {
-            return state.mythics >= 25;
-        }
-    },
-
-
-    /* HOLYS */
-
-    {
-        id: 'holy1',
-        name: 'Divine',
-        description: 'Find your first Holy',
-        reward: 250000,
-        target: 1,
-        progress: function () {
-            return state.holys;
-        },
-        test: function () {
-            return state.holys >= 1;
-        }
-    },
-
-    {
-        id: 'holy5',
-        name: 'Blessed',
-        description: 'Find 5 Holys',
-        reward: 500000,
-        target: 5,
-        progress: function () {
-            return state.holys;
-        },
-        test: function () {
-            return state.holys >= 5;
-        }
-    },
-
-    {
-        id: 'holy10',
-        name: 'Chosen',
-        description: 'Find 10 Holys',
-        reward: 1000000,
-        target: 10,
-        progress: function () {
-            return state.holys;
-        },
-        test: function () {
-            return state.holys >= 10;
-        }
-    },
-
-    {
-        id: 'holy25',
-        name: 'Divine Legend',
-        description: 'Find 25 Holys',
-        reward: 5000000,
-        target: 25,
-        progress: function () {
-            return state.holys;
-        },
-        test: function () {
-            return state.holys >= 25;
-        }
-    },
-
-
-    /* BEST ROLL */
-
-    {
-        id: 'best10k',
-        name: 'Big Roll',
-        description: 'Get a single roll worth 10,000+ EP',
-        reward: 5000,
-        target: 10000,
-        progress: function () {
-            return state.bestEp;
-        },
-        test: function () {
-            return state.bestEp >= 10000;
-        }
-    },
-
-    {
-        id: 'best50k',
-        name: 'Huge Roll',
-        description: 'Get a single roll worth 50,000+ EP',
-        reward: 25000,
-        target: 50000,
-        progress: function () {
-            return state.bestEp;
-        },
-        test: function () {
-            return state.bestEp >= 50000;
-        }
-    },
-
-    {
-        id: 'best100k',
-        name: 'Monster Roll',
-        description: 'Get a single roll worth 100,000+ EP',
-        reward: 100000,
-        target: 100000,
-        progress: function () {
-            return state.bestEp;
-        },
-        test: function () {
-            return state.bestEp >= 100000;
-        }
-    },
-
-    {
-        id: 'best250k',
-        name: 'Massive Roll',
-        description: 'Get a single roll worth 250,000+ EP',
-        reward: 250000,
-        target: 250000,
-        progress: function () {
-            return state.bestEp;
-        },
-        test: function () {
-            return state.bestEp >= 250000;
-        }
-    },
-
-    {
-        id: 'best500k',
-        name: 'Insane Roll',
-        description: 'Get a single roll worth 500,000+ EP',
-        reward: 500000,
-        target: 500000,
-        progress: function () {
-            return state.bestEp;
-        },
-        test: function () {
-            return state.bestEp >= 500000;
-        }
-    },
-
-    {
-        id: 'best750k',
-        name: 'Almost Divine',
-        description: 'Get a single roll worth 750,000+ EP',
-        reward: 750000,
-        target: 750000,
-        progress: function () {
-            return state.bestEp;
-        },
-        test: function () {
-            return state.bestEp >= 750000;
-        }
-    },
-
-    {
-        id: 'best1m',
-        name: 'One Million',
-        description: 'Get a single roll worth 1,000,000+ EP',
-        reward: 1000000,
-        target: 1000000,
-        progress: function () {
-            return state.bestEp;
-        },
-        test: function () {
-            return state.bestEp >= 1000000;
-        }
-    }
+const epMilestones = [
+    ['ep1000', 'First Thousand', 1000, 1000],
+    ['ep5000', 'Warming Up', 5000, 1500],
+    ['ep10000', 'Getting Started', 10000, 2500],
+    ['ep25000', 'Quarter Century', 25000, 5000],
+    ['ep100000', 'Six Figures', 100000, 10000],
+    ['ep250000', 'EP Veteran', 250000, 25000],
+    ['ep1000000', 'Million EP', 1000000, 50000],
+    ['ep2500000', 'EP Tycoon', 2500000, 100000],
+    ['ep10000000', 'EP Legend', 10000000, 500000]
 ];
+
+epMilestones.forEach(([id, name, target, reward]) =>
+    addMilestone(
+        id,
+        name,
+        `Earn ${formatNumber(target)} total EP`,
+        reward,
+        target,
+        () => state.totalEp
+    )
+);
+
+
+const rollMilestones = [
+    ['roll10', 'Getting Lucky', 10, 100],
+    ['roll100', 'Roller', 100, 1000],
+    ['roll500', 'Persistent', 500, 2500],
+    ['roll1000', 'Dedicated', 1000, 5000],
+    ['roll2500', 'Grinder', 2500, 10000],
+    ['roll10000', 'Machine', 10000, 25000],
+    ['roll25000', 'Unstoppable', 25000, 50000],
+    ['roll100000', 'Roll Addict', 100000, 150000],
+    ['roll500000', 'The Machine', 500000, 500000]
+];
+
+rollMilestones.forEach(([id, name, target, reward]) =>
+    addMilestone(
+        id,
+        name,
+        `Roll ${formatNumber(target)} times`,
+        reward,
+        target,
+        () => state.totalRolls
+    )
+);
+
+
+const badgeMilestones = [
+    ['badge1', 'First Discovery', 1, 250],
+    ['badge5', 'Collector', 5, 2500],
+    ['badge10', 'Explorer', 10, 5000],
+    ['badge15', 'Badge Hunter', 15, 7500],
+    ['badge25', 'Badge Collector', 25, 15000],
+    ['badge30', 'Badge Master', 30, 25000],
+    ['badge40', 'Badge Expert', 40, 40000],
+    ['badge50', 'Completionist', 50, 75000],
+    ['badge60', 'Badge Elite', 60, 100000],
+    ['badge75', 'Badge Overlord', 75, 200000]
+];
+
+badgeMilestones.forEach(([id, name, target, reward]) =>
+    addMilestone(
+        id,
+        name,
+        `Unlock ${formatNumber(target)} badges`,
+        reward,
+        target,
+        () => Object.keys(state.foundBadges).length
+    )
+);
+
+
+const rarityMilestones = [
+    ['anomaly', 'anomaly1', 'Something Strange', 1, 10000],
+    ['anomaly', 'anomaly5', 'Anomaly Seeker', 5, 25000],
+    ['anomaly', 'anomaly10', 'Anomaly Hunter', 10, 50000],
+    ['anomaly', 'anomaly25', 'Anomaly Master', 25, 200000],
+    ['anomaly', 'anomaly50', 'Anomaly Legend', 50, 500000],
+
+    ['mythic', 'mythic1', 'Mythic Discovery', 1, 50000],
+    ['mythic', 'mythic5', 'Mythic Seeker', 5, 150000],
+    ['mythic', 'mythic10', 'Mythic Hunter', 10, 300000],
+    ['mythic', 'mythic25', 'Mythic Master', 25, 1000000],
+
+    ['holy', 'holy1', 'Divine', 1, 250000],
+    ['holy', 'holy5', 'Blessed', 5, 500000],
+    ['holy', 'holy10', 'Chosen', 10, 1000000],
+    ['holy', 'holy25', 'Divine Legend', 25, 5000000]
+];
+
+
+const rarityNames = {
+    anomaly: 'Anomalies',
+    mythic: 'Mythics',
+    holy: 'Holys'
+};
+
+
+rarityMilestones.forEach(
+    ([type, id, name, target, reward]) => {
+        addMilestone(
+            id,
+            name,
+            `Find ${formatNumber(target)} ${rarityNames[type]}`,
+            reward,
+            target,
+            () => state[type + 's']
+        );
+    }
+);
+
+
+const bestMilestones = [
+    ['best10k', 'Big Roll', 10000, 5000],
+    ['best50k', 'Huge Roll', 50000, 25000],
+    ['best100k', 'Monster Roll', 100000, 100000],
+    ['best250k', 'Massive Roll', 250000, 250000],
+    ['best500k', 'Insane Roll', 500000, 500000],
+    ['best750k', 'Almost Divine', 750000, 750000],
+    ['best1m', 'One Million', 1000000, 1000000]
+];
+
+bestMilestones.forEach(([id, name, target, reward]) =>
+    addMilestone(
+        id,
+        name,
+        `Get a single roll worth ${formatNumber(target)}+ EP`,
+        reward,
+        target,
+        () => state.bestEp
+    )
+);
 
 
 function checkMilestones() {
@@ -3291,10 +1514,7 @@ function checkMilestones() {
 
             showToast(
                 'MILESTONE',
-                milestone.name +
-                '  +' +
-                formatEP(milestone.reward) +
-                ' EP',
+                `${milestone.name}  +${formatEP(milestone.reward)} EP`,
                 'milestone-toast'
             );
         }
@@ -3314,18 +1534,14 @@ function checkMilestones() {
 ================================================== */
 
 function renderResult() {
-    const resultCard =
-        $('resultCard');
+    const card = $('resultCard');
 
-    if (!resultCard) {
-        return;
-    }
+    if (!card) return;
 
     if (!state.history.length) {
-        resultCard.className =
-            'result-card';
+        card.className = 'result-card';
 
-        resultCard.innerHTML = `
+        card.innerHTML = `
             <div class="latest-label">LATEST ROLL</div>
             <div class="latest-number">—</div>
             <div class="latest-rarity">NO ROLLS YET</div>
@@ -3335,41 +1551,20 @@ function renderResult() {
         return;
     }
 
-    const result =
-        state.history[0];
+    const result = state.history[0];
 
-    resultCard.className =
-        'result-card ' +
-        result.rarity.toLowerCase();
+    card.className =
+        `result-card ${result.rarity.toLowerCase()}`;
 
-    const badgeText =
-        result.badges.length > 0
-            ? result.badges.length +
-              ' badge' +
-              (
-                  result.badges.length === 1
-                      ? ''
-                      : 's'
-              )
-            : 'No badges';
+    const count = result.badges.length;
 
-    resultCard.innerHTML = `
+    card.innerHTML = `
         <div class="latest-label">LATEST ROLL</div>
-
-        <div class="latest-number">
-            ${formatNumber(result.number)}
-        </div>
-
-        <div class="latest-rarity">
-            ${result.rarity}
-        </div>
-
-        <div class="latest-ep">
-            ${formatEP(result.ep)} EP
-        </div>
-
+        <div class="latest-number">${formatNumber(result.number)}</div>
+        <div class="latest-rarity">${result.rarity}</div>
+        <div class="latest-ep">${formatEP(result.ep)} EP</div>
         <div class="latest-badges">
-            ${badgeText}
+            ${count ? `${count} badge${count === 1 ? '' : 's'}` : 'No badges'}
         </div>
     `;
 }
@@ -3380,83 +1575,48 @@ function renderResult() {
 ================================================== */
 
 function renderStats() {
-    const totalEp = $('totalEp');
-    const totalRolls = $('totalRolls');
-    const bestEp = $('bestEp');
-    const bestNumber = $('bestNumber');
-    const anomalyStat = $('anomalyStat');
-    const mythicStat = $('mythicStat');
-    const holyStat = $('holyStat');
-    const badgesFound = $('badgesFound');
-    const accountName = $('accountName');
-
-    if (totalEp) {
-        totalEp.textContent =
-            formatEP(state.totalEp);
-    }
-
-    if (totalRolls) {
-        totalRolls.textContent =
-            formatNumber(state.totalRolls);
-    }
-
-    if (bestEp) {
-        bestEp.textContent =
-            formatEP(state.bestEp);
-    }
-
-    if (bestNumber) {
-        bestNumber.textContent =
+    const values = {
+        totalEp: formatEP(state.totalEp),
+        totalRolls: formatNumber(state.totalRolls),
+        bestEp: formatEP(state.bestEp),
+        bestNumber:
             state.bestNumber === null
                 ? '—'
-                : formatNumber(
-                    state.bestNumber
-                );
+                : formatNumber(state.bestNumber),
+        badgesFound: formatNumber(
+            Object.keys(state.foundBadges).length
+        )
+    };
+
+    for (const [id, value] of Object.entries(values)) {
+        const element = $(id);
+
+        if (element) {
+            element.textContent = value;
+        }
     }
 
-    /*
-    Keep the rarity label AND number.
-    */
+    const rarityStats = [
+        ['anomalyStat', 'ANOMALY', state.anomalies],
+        ['mythicStat', 'MYTHIC', state.mythics],
+        ['holyStat', 'HOLY', state.holys]
+    ];
 
-    if (anomalyStat) {
-        anomalyStat.innerHTML = `
-            <span>ANOMALY</span>
-            <strong>
-                ${formatNumber(state.anomalies)}
-            </strong>
-        `;
+    for (const [id, label, count] of rarityStats) {
+        const element = $(id);
+
+        if (element) {
+            element.innerHTML = `
+                <span>${label}</span>
+                <strong>${formatNumber(count)}</strong>
+            `;
+        }
     }
 
-    if (mythicStat) {
-        mythicStat.innerHTML = `
-            <span>MYTHIC</span>
-            <strong>
-                ${formatNumber(state.mythics)}
-            </strong>
-        `;
-    }
-
-    if (holyStat) {
-        holyStat.innerHTML = `
-            <span>HOLY</span>
-            <strong>
-                ${formatNumber(state.holys)}
-            </strong>
-        `;
-    }
-
-    if (badgesFound) {
-        badgesFound.textContent =
-            formatNumber(
-                Object.keys(
-                    state.foundBadges
-                ).length
-            );
-    }
+    const accountName = $('accountName');
 
     if (accountName) {
-        accountName.textContent =
-            state.username;
+        accountName.textContent = state.username;
     }
 }
 
@@ -3466,40 +1626,20 @@ function renderStats() {
 ================================================== */
 
 function renderRarities() {
-    const grid =
-        $('rarityGrid');
+    const grid = $('rarityGrid');
 
-    if (!grid) {
-        return;
-    }
+    if (!grid) return;
 
-    grid.innerHTML = '';
-
-    for (const rarity of RARITIES) {
-        const count =
-            state.rarityCounts[
-                rarity.id
-            ] || 0;
-
-        const item =
-            document.createElement('div');
-
-        item.className =
-            'rarity-item ' +
-            rarity.id.toLowerCase();
-
-        item.innerHTML = `
-            <span>
-                ${rarity.label}
-            </span>
-
+    grid.innerHTML = RARITIES.map(rarity => `
+        <div class="rarity-item ${rarity.id.toLowerCase()}">
+            <span>${rarity.label}</span>
             <strong>
-                ${formatNumber(count)}
+                ${formatNumber(
+                    state.rarityCounts[rarity.id] || 0
+                )}
             </strong>
-        `;
-
-        grid.appendChild(item);
-    }
+        </div>
+    `).join('');
 }
 
 
@@ -3508,51 +1648,31 @@ function renderRarities() {
 ================================================== */
 
 function renderBadges() {
-    const grid =
-        $('badgeGrid');
+    const grid = $('badgeGrid');
 
-    if (!grid) {
-        return;
-    }
+    if (!grid) return;
 
-    grid.innerHTML = '';
-
-    for (const badge of badgeDefinitions) {
+    grid.innerHTML = badgeDefinitions.map(badge => {
         const unlocked =
-            Boolean(
-                state.foundBadges[
-                    badge.id
-                ]
-            );
+            Boolean(state.foundBadges[badge.id]);
 
-        const item =
-            document.createElement('div');
+        return `
+            <div class="badge-item ${unlocked ? 'unlocked' : 'locked'}">
+                <div class="badge-name">
+                    ${unlocked ? '✓ ' : '🔒 '}
+                    ${badge.name}
+                </div>
 
-        item.className =
-            'badge-item ' +
-            (
-                unlocked
-                    ? 'unlocked'
-                    : 'locked'
-            );
+                <div class="badge-description">
+                    ${badge.description}
+                </div>
 
-        item.innerHTML = `
-            <div class="badge-name">
-                ${unlocked ? '✓ ' : '🔒 '}
-                ${badge.name}
-            </div>
-
-            <div class="badge-description">
-                ${badge.description}
-            </div>
-
-            <div class="badge-ep">
-                +${formatEP(badge.ep)} EP
+                <div class="badge-ep">
+                    +${formatEP(badge.ep)} EP
+                </div>
             </div>
         `;
-
-        grid.appendChild(item);
-    }
+    }).join('');
 }
 
 
@@ -3561,114 +1681,79 @@ function renderBadges() {
 ================================================== */
 
 function renderMilestones() {
-    const grid =
-        $('milestoneGrid');
+    const grid = $('milestoneGrid');
 
-    if (!grid) {
-        return;
-    }
+    if (!grid) return;
 
-    grid.innerHTML = '';
-
-    for (const milestone of MILESTONES) {
+    grid.innerHTML = MILESTONES.map(milestone => {
         const claimed =
             state.milestonesClaimed.includes(
                 milestone.id
             );
 
-        const item =
-            document.createElement('div');
-
-        item.className =
-            'milestone-item ' +
-            (
-                claimed
-                    ? 'claimed'
-                    : 'locked'
-            );
-
-        let current = 0;
-
         const target =
             Number(milestone.target) || 1;
 
-        if (
-            typeof milestone.progress ===
-            'function'
-        ) {
-            try {
-                current =
-                    Number(
-                        milestone.progress()
-                    ) || 0;
-            } catch (error) {
-                console.error(
-                    'Milestone progress error:',
-                    milestone.id,
-                    error
-                );
-            }
+        let current = 0;
+
+        try {
+            current =
+                Number(milestone.progress()) || 0;
+        } catch (error) {
+            console.error(
+                'Milestone progress error:',
+                milestone.id,
+                error
+            );
         }
 
-        current =
-            Math.max(0, current);
+        current = Math.max(0, current);
 
-        const percent =
-            claimed
-                ? 100
-                : Math.min(
-                    100,
-                    Math.max(
-                        0,
-                        (
-                            current /
-                            target
-                        ) * 100
-                    )
-                );
+        const percent = claimed
+            ? 100
+            : Math.min(
+                100,
+                Math.max(
+                    0,
+                    current / target * 100
+                )
+            );
 
-        const progressText =
-            claimed
-                ? 'COMPLETED'
-                : formatNumber(
-                    Math.min(
-                        current,
-                        target
-                    )
-                ) +
-                ' / ' +
-                formatNumber(target);
+        const progressText = claimed
+            ? 'COMPLETED'
+            : `${formatNumber(Math.min(current, target))} / ${formatNumber(target)}`;
 
-        item.innerHTML = `
-            <div class="milestone-name">
-                ${claimed ? '✓ ' : '○ '}
-                ${milestone.name}
-            </div>
+        return `
+            <div class="milestone-item ${claimed ? 'claimed' : 'locked'}">
 
-            <div class="milestone-description">
-                ${milestone.description}
-            </div>
-
-            <div class="milestone-progress">
-                <div class="milestone-progress-track">
-                    <div
-                        class="milestone-progress-fill"
-                        style="--progress: ${percent}%"
-                    ></div>
+                <div class="milestone-name">
+                    ${claimed ? '✓ ' : '○ '}
+                    ${milestone.name}
                 </div>
 
-                <div class="milestone-progress-text">
-                    ${progressText}
+                <div class="milestone-description">
+                    ${milestone.description}
                 </div>
-            </div>
 
-            <div class="milestone-reward">
-                +${formatEP(milestone.reward)} EP
+                <div class="milestone-progress">
+                    <div class="milestone-progress-track">
+                        <div
+                            class="milestone-progress-fill"
+                            style="--progress:${percent}%"
+                        ></div>
+                    </div>
+
+                    <div class="milestone-progress-text">
+                        ${progressText}
+                    </div>
+                </div>
+
+                <div class="milestone-reward">
+                    +${formatEP(milestone.reward)} EP
+                </div>
             </div>
         `;
-
-        grid.appendChild(item);
-    }
+    }).join('');
 }
 
 
@@ -3677,14 +1762,9 @@ function renderMilestones() {
 ================================================== */
 
 function renderHistory() {
-    const list =
-        $('historyList');
+    const list = $('historyList');
 
-    if (!list) {
-        return;
-    }
-
-    list.innerHTML = '';
+    if (!list) return;
 
     if (!state.history.length) {
         list.innerHTML = `
@@ -3696,46 +1776,36 @@ function renderHistory() {
         return;
     }
 
-    for (const entry of state.history) {
-        const row =
-            document.createElement('div');
-
-        row.className =
-            'history-row ' +
-            entry.rarity.toLowerCase();
-
-        const date =
-            new Date(entry.time);
-
-        const badgeCount =
+    list.innerHTML = state.history.map(entry => {
+        const badges =
             Array.isArray(entry.badges)
                 ? entry.badges.length
                 : 0;
 
-        row.innerHTML = `
-            <div class="history-number">
-                ${formatNumber(entry.number)}
-            </div>
+        return `
+            <div class="history-row ${entry.rarity.toLowerCase()}">
+                <div class="history-number">
+                    ${formatNumber(entry.number)}
+                </div>
 
-            <div class="history-rarity">
-                ${entry.rarity}
-            </div>
+                <div class="history-rarity">
+                    ${entry.rarity}
+                </div>
 
-            <div class="history-ep">
-                ${formatEP(entry.ep)} EP
-            </div>
+                <div class="history-ep">
+                    ${formatEP(entry.ep)} EP
+                </div>
 
-            <div class="history-badges">
-                ${badgeCount} badge${badgeCount === 1 ? '' : 's'}
-            </div>
+                <div class="history-badges">
+                    ${badges} badge${badges === 1 ? '' : 's'}
+                </div>
 
-            <div class="history-time">
-                ${date.toLocaleTimeString()}
+                <div class="history-time">
+                    ${new Date(entry.time).toLocaleTimeString()}
+                </div>
             </div>
         `;
-
-        list.appendChild(row);
-    }
+    }).join('');
 }
 
 
@@ -3744,65 +1814,26 @@ function renderHistory() {
 ================================================== */
 
 function openDetails(type) {
-    const dialog =
-        $('detailsDialog');
-
-    const title =
-        $('detailsTitle');
-
-    const body =
-        $('detailsBody');
+    const dialog = $('detailsDialog');
+    const title = $('detailsTitle');
+    const body = $('detailsBody');
 
     if (!dialog || !title || !body) {
         return;
     }
 
-    let heading = '';
-    let entries = [];
+    const labels = {
+        anomaly: 'ANOMALY HISTORY',
+        mythic: 'MYTHIC HISTORY',
+        holy: 'HOLY HISTORY'
+    };
 
-    if (type === 'anomaly') {
-        heading = 'ANOMALY HISTORY';
+    const entries =
+        state.rareHistory.filter(
+            entry => entry.rarity === type.toUpperCase()
+        );
 
-        entries =
-            state.rareHistory.filter(
-                function (entry) {
-                    return (
-                        entry.rarity ===
-                        'ANOMALY'
-                    );
-                }
-            );
-    }
-
-    if (type === 'mythic') {
-        heading = 'MYTHIC HISTORY';
-
-        entries =
-            state.rareHistory.filter(
-                function (entry) {
-                    return (
-                        entry.rarity ===
-                        'MYTHIC'
-                    );
-                }
-            );
-    }
-
-    if (type === 'holy') {
-        heading = 'HOLY HISTORY';
-
-        entries =
-            state.rareHistory.filter(
-                function (entry) {
-                    return (
-                        entry.rarity ===
-                        'HOLY'
-                    );
-                }
-            );
-    }
-
-    title.textContent = heading;
+    title.textContent = labels[type] || '';
 
     if (!entries.length) {
         body.innerHTML = `
@@ -3812,40 +1843,27 @@ function openDetails(type) {
         `;
     } else {
         body.innerHTML =
-            entries
-                .slice(0, 50)
-                .map(
-                    function (entry) {
-                        return `
-                            <div class="detail-row">
-                                <strong>
-                                    ${formatNumber(entry.number)}
-                                </strong>
+            entries.slice(0, 50).map(entry => `
+                <div class="detail-row">
+                    <strong>
+                        ${formatNumber(entry.number)}
+                    </strong>
 
-                                <span class="${entry.rarity.toLowerCase()}">
-                                    ${entry.rarity}
-                                </span>
+                    <span class="${entry.rarity.toLowerCase()}">
+                        ${entry.rarity}
+                    </span>
 
-                                <span>
-                                    ${formatEP(entry.ep)} EP
-                                </span>
-                            </div>
-                        `;
-                    }
-                )
-                .join('');
+                    <span>
+                        ${formatEP(entry.ep)} EP
+                    </span>
+                </div>
+            `).join('');
     }
 
-    if (
-        typeof dialog.showModal ===
-        'function'
-    ) {
+    if (typeof dialog.showModal === 'function') {
         dialog.showModal();
     } else {
-        dialog.setAttribute(
-            'open',
-            ''
-        );
+        dialog.setAttribute('open', '');
     }
 }
 
@@ -3854,50 +1872,31 @@ function openDetails(type) {
    TOASTS
 ================================================== */
 
-function showToast(
-    title,
-    message,
-    className
-) {
-    const container =
-        $('toastContainer');
+function showToast(title, message, className = '') {
+    const container = $('toastContainer');
 
-    if (!container) {
-        return;
-    }
+    if (!container) return;
 
-    const toast =
-        document.createElement('div');
+    const toast = document.createElement('div');
 
     toast.className =
-        'toast ' +
-        (className || '');
+        `toast ${className}`;
 
     toast.innerHTML = `
-        <div class="toast-title">
-            ${title}
-        </div>
-
-        <div class="toast-message">
-            ${message}
-        </div>
+        <div class="toast-title">${title}</div>
+        <div class="toast-message">${message}</div>
     `;
 
     container.appendChild(toast);
 
-    setTimeout(
-        function () {
-            toast.classList.add('hide');
+    setTimeout(() => {
+        toast.classList.add('hide');
 
-            setTimeout(
-                function () {
-                    toast.remove();
-                },
-                300
-            );
-        },
-        3500
-    );
+        setTimeout(
+            () => toast.remove(),
+            300
+        );
+    }, 3500);
 }
 
 
@@ -3906,18 +1905,20 @@ function showToast(
 ================================================== */
 
 function getAudioContext() {
-    if (!audioContext) {
-        const AudioContextClass =
-            window.AudioContext ||
-            window.webkitAudioContext;
-
-        if (!AudioContextClass) {
-            return null;
-        }
-
-        audioContext =
-            new AudioContextClass();
+    if (audioContext) {
+        return audioContext;
     }
+
+    const AudioContextClass =
+        window.AudioContext ||
+        window.webkitAudioContext;
+
+    if (!AudioContextClass) {
+        return null;
+    }
+
+    audioContext =
+        new AudioContextClass();
 
     return audioContext;
 }
@@ -3925,12 +1926,9 @@ function getAudioContext() {
 
 function playRareSound() {
     try {
-        const ctx =
-            getAudioContext();
+        const ctx = getAudioContext();
 
-        if (!ctx) {
-            return;
-        }
+        if (!ctx) return;
 
         if (ctx.state === 'suspended') {
             ctx.resume();
@@ -3987,16 +1985,13 @@ function playRareSound() {
 
 
 /* ==================================================
-   RESET
+   RESET / HISTORY
 ================================================== */
 
 async function resetStats() {
-    const confirmed =
-        window.confirm(
-            'Are you sure you want to reset all RNG Vault stats?'
-        );
-
-    if (!confirmed) {
+    if (!window.confirm(
+        'Are you sure you want to reset all RNG Vault stats?'
+    )) {
         return;
     }
 
@@ -4015,17 +2010,10 @@ async function resetStats() {
 }
 
 
-/* ==================================================
-   CLEAR HISTORY
-================================================== */
-
 async function clearHistory() {
-    const confirmed =
-        window.confirm(
-            'Clear your roll history? Your stats will remain.'
-        );
-
-    if (!confirmed) {
+    if (!window.confirm(
+        'Clear your roll history? Your stats will remain.'
+    )) {
         return;
     }
 
@@ -4046,54 +2034,30 @@ async function clearHistory() {
 
 
 /* ==================================================
-   ACCOUNT / AUTH
+   AUTH
 ================================================== */
 
 function getAccountName() {
-    const input =
-        $('accountNameInput');
-
-    return input
-        ? input.value.trim()
-        : '';
+    return $('accountNameInput')?.value.trim() || '';
 }
 
 
 function getEmail() {
-    const input =
-        $('emailInput');
-
-    return input
-        ? input.value.trim()
-        : '';
+    return $('emailInput')?.value.trim() || '';
 }
 
 
 function getPassword() {
-    const input =
-        $('passwordInput');
-
-    return input
-        ? input.value
-        : '';
+    return $('passwordInput')?.value || '';
 }
 
 
 function updateAuthUI() {
-    const signInBtn =
-        $('signInBtn');
-
-    const signUpBtn =
-        $('signUpBtn');
-
-    const signOutBtn =
-        $('signOutBtn');
-
-    const guestBtn =
-        $('guestBtn');
-
-    const status =
-        $('authStatus');
+    const signInBtn = $('signInBtn');
+    const signUpBtn = $('signUpBtn');
+    const signOutBtn = $('signOutBtn');
+    const guestBtn = $('guestBtn');
+    const status = $('authStatus');
 
     if (!SUPABASE_CONFIGURED) {
         if (status) {
@@ -4101,21 +2065,12 @@ function updateAuthUI() {
                 'Guest mode active. Supabase is not configured.';
         }
 
-        if (signInBtn) {
-            signInBtn.disabled = true;
-        }
-
-        if (signUpBtn) {
-            signUpBtn.disabled = true;
-        }
-
-        if (signOutBtn) {
-            signOutBtn.disabled = true;
-        }
+        if (signInBtn) signInBtn.disabled = true;
+        if (signUpBtn) signUpBtn.disabled = true;
+        if (signOutBtn) signOutBtn.disabled = true;
 
         if (guestBtn) {
-            guestBtn.textContent =
-                'Continue as Guest';
+            guestBtn.textContent = 'Continue as Guest';
         }
 
         return;
@@ -4127,23 +2082,15 @@ function updateAuthUI() {
                 'Cloud account active. Your progress is synced automatically.';
         }
 
-        if (signInBtn) {
-            signInBtn.disabled = true;
-        }
-
-        if (signUpBtn) {
-            signUpBtn.disabled = true;
-        }
-
+        if (signInBtn) signInBtn.disabled = true;
+        if (signUpBtn) signUpBtn.disabled = true;
         if (signOutBtn) {
             signOutBtn.disabled = false;
-            signOutBtn.textContent =
-                'Sign Out';
+            signOutBtn.textContent = 'Sign Out';
         }
 
         if (guestBtn) {
-            guestBtn.textContent =
-                'Continue';
+            guestBtn.textContent = 'Continue';
         }
 
         return;
@@ -4154,21 +2101,12 @@ function updateAuthUI() {
             'Guest mode active. Your progress is saved locally.';
     }
 
-    if (signInBtn) {
-        signInBtn.disabled = false;
-    }
-
-    if (signUpBtn) {
-        signUpBtn.disabled = false;
-    }
-
-    if (signOutBtn) {
-        signOutBtn.disabled = true;
-    }
+    if (signInBtn) signInBtn.disabled = false;
+    if (signUpBtn) signUpBtn.disabled = false;
+    if (signOutBtn) signOutBtn.disabled = true;
 
     if (guestBtn) {
-        guestBtn.textContent =
-            'Continue as Guest';
+        guestBtn.textContent = 'Continue as Guest';
     }
 }
 
@@ -4184,25 +2122,59 @@ async function initAuth() {
         await initializeSupabase();
 
     if (!initialized) {
-        if (statusExists()) {
-            const status =
-                $('authStatus');
+        const status = $('authStatus');
 
+        if (status) {
             status.textContent =
                 'Guest mode active. Could not connect to Supabase.';
         }
-
-        return;
     }
 
     updateAuthUI();
 }
 
 
-function statusExists() {
-    return Boolean(
-        $('authStatus')
-    );
+function authErrorMessage(error, action) {
+    const message =
+        String(error?.message || '').toLowerCase();
+
+    if (
+        action === 'signin' &&
+        (
+            message.includes('email not confirmed') ||
+            message.includes('email_not_confirmed')
+        )
+    ) {
+        return 'Please confirm your email first, then try signing in again.';
+    }
+
+    if (
+        action === 'signup' &&
+        (
+            message.includes('already registered') ||
+            message.includes('already been registered') ||
+            message.includes('duplicate key') ||
+            message.includes('users_email_partial_key')
+        )
+    ) {
+        return 'This email is already registered. Confirm the email if needed, then use Sign In.';
+    }
+
+    if (
+        action === 'signup' &&
+        message.includes('database error saving new user')
+    ) {
+        return 'This email may already be registered. If you already signed up, confirm your email and use Sign In.';
+    }
+
+    if (
+        message.includes('invalid login credentials')
+    ) {
+        return 'Incorrect email or password.';
+    }
+
+    return error?.message ||
+        `Could not ${action === 'signup' ? 'create the account' : 'sign in'}.`;
 }
 
 
@@ -4217,11 +2189,8 @@ async function signIn() {
         return;
     }
 
-    const email =
-        getEmail();
-
-    const password =
-        getPassword();
+    const email = getEmail();
+    const password = getPassword();
 
     if (!email || !password) {
         showToast(
@@ -4233,21 +2202,29 @@ async function signIn() {
         return;
     }
 
-    try {
-        const result =
-            await supabaseClient.auth.signInWithPassword(
-                {
-                    email: email,
-                    password: password
-                }
-            );
+    const button = $('signInBtn');
 
-        if (result.error) {
-            throw result.error;
+    if (button) {
+        button.disabled = true;
+    }
+
+    try {
+        const { data, error } =
+            await supabaseClient.auth.signInWithPassword({
+                email,
+                password
+            });
+
+        if (error) {
+            throw error;
         }
 
-        currentUser =
-            result.data.user;
+        currentUser = data.user;
+
+        /*
+        This loads the cloud save after
+        authentication succeeds.
+        */
 
         await loadCloudState();
 
@@ -4266,10 +2243,11 @@ async function signIn() {
 
         showToast(
             'SIGN IN FAILED',
-            error.message ||
-            'Could not sign in.',
+            authErrorMessage(error, 'signin'),
             'error-toast'
         );
+    } finally {
+        updateAuthUI();
     }
 }
 
@@ -4285,14 +2263,9 @@ async function signUp() {
         return;
     }
 
-    const accountName =
-        getAccountName();
-
-    const email =
-        getEmail();
-
-    const password =
-        getPassword();
+    const accountName = getAccountName();
+    const email = getEmail();
+    const password = getPassword();
 
     if (!accountName) {
         showToast(
@@ -4324,43 +2297,43 @@ async function signUp() {
         return;
     }
 
+    const button = $('signUpBtn');
+
+    if (button) {
+        button.disabled = true;
+    }
+
     try {
-        const result =
-            await supabaseClient.auth.signUp(
-                {
-                    email: email,
-                    password: password,
-                    options: {
-                        data: {
-                            username:
-                                accountName
-                        }
+        const { data, error } =
+            await supabaseClient.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        username: accountName
                     }
                 }
-            );
+            });
 
-        if (result.error) {
-            throw result.error;
+        if (error) {
+            throw error;
         }
 
-        state.username =
-            accountName;
+        /*
+        IMPORTANT:
+        When Supabase email confirmation is enabled,
+        signup succeeds but session is NULL.
 
+        We therefore DO NOT treat that as an error,
+        and we DO NOT pretend the user is signed in.
+        */
+
+        state.username = accountName;
         saveLocal();
         renderStats();
 
-        /*
-        Supabase may require email
-        confirmation depending on the
-        project's Auth settings.
-        */
-
-        if (
-            result.data &&
-            result.data.session
-        ) {
-            currentUser =
-                result.data.user;
+        if (data?.session && data?.user) {
+            currentUser = data.user;
 
             await saveCloudState();
 
@@ -4371,13 +2344,21 @@ async function signUp() {
                 'Your account was created and your save is synced.',
                 'success-toast'
             );
-        } else {
-            showToast(
-                'ACCOUNT CREATED',
-                'Check your email to confirm your account, then sign in.',
-                'success-toast'
-            );
+
+            return;
         }
+
+        /*
+        Email confirmation is required.
+        The account exists, but there is no
+        authenticated session yet.
+        */
+
+        showToast(
+            'CHECK YOUR EMAIL',
+            'Your account was created. Confirm your email, then use Sign In.',
+            'success-toast'
+        );
     } catch (error) {
         console.error(
             'Sign up error:',
@@ -4386,19 +2367,17 @@ async function signUp() {
 
         showToast(
             'SIGN UP FAILED',
-            error.message ||
-            'Could not create account.',
+            authErrorMessage(error, 'signup'),
             'error-toast'
         );
+    } finally {
+        updateAuthUI();
     }
 }
 
 
 async function signOut() {
-    if (
-        !supabaseClient ||
-        !currentUser
-    ) {
+    if (!supabaseClient || !currentUser) {
         showToast(
             'GUEST MODE',
             'You are already using local guest saving.',
@@ -4411,19 +2390,18 @@ async function signOut() {
     try {
         await saveCloudState();
 
-        const result =
+        const { error } =
             await supabaseClient.auth.signOut();
 
-        if (result.error) {
-            throw result.error;
+        if (error) {
+            throw error;
         }
 
         currentUser = null;
 
         /*
         Keep the currently loaded state
-        locally so the user does not
-        suddenly lose their progress.
+        locally after signing out.
         */
 
         saveLocal();
@@ -4443,7 +2421,7 @@ async function signOut() {
         showToast(
             'SIGN OUT FAILED',
             error.message ||
-            'Could not sign out.',
+                'Could not sign out.',
             'error-toast'
         );
     }
@@ -4451,8 +2429,7 @@ async function signOut() {
 
 
 function continueAsGuest() {
-    const dialog =
-        $('accountDialog');
+    const dialog = $('accountDialog');
 
     if (dialog) {
         dialog.close();
@@ -4469,7 +2446,7 @@ function continueAsGuest() {
 
 
 /* ==================================================
-   RENDER EVERYTHING
+   RENDER ALL
 ================================================== */
 
 function renderAll() {
@@ -4487,206 +2464,76 @@ function renderAll() {
 ================================================== */
 
 function init() {
-    const rollBtn =
-        $('rollBtn');
+    const events = {
+        rollBtn: ['click', () => roll()],
+        autoBtn: ['click', toggleAutoRoll],
+        resetBtn: ['click', resetStats],
+        clearHistoryBtn: ['click', clearHistory],
 
-    const autoBtn =
-        $('autoBtn');
-
-    const resetBtn =
-        $('resetBtn');
-
-    const clearHistoryBtn =
-        $('clearHistoryBtn');
-
-    const anomalyStat =
-        $('anomalyStat');
-
-    const mythicStat =
-        $('mythicStat');
-
-    const holyStat =
-        $('holyStat');
-
-    const accountBtn =
-        $('accountBtn');
-
-    const accountDialog =
-        $('accountDialog');
-
-    const accountClose =
-        $('accountClose');
-
-    const detailsDialog =
-        $('detailsDialog');
-
-    const detailsClose =
-        $('detailsClose');
-
-    if (rollBtn) {
-        rollBtn.addEventListener(
+        anomalyStat: [
             'click',
-            function () {
-                roll(false);
-            }
-        );
+            () => openDetails('anomaly')
+        ],
+
+        mythicStat: [
+            'click',
+            () => openDetails('mythic')
+        ],
+
+        holyStat: [
+            'click',
+            () => openDetails('holy')
+        ],
+
+        accountBtn: [
+            'click',
+            () => $('accountDialog')?.showModal()
+        ],
+
+        accountClose: [
+            'click',
+            () => $('accountDialog')?.close()
+        ],
+
+        detailsClose: [
+            'click',
+            () => $('detailsDialog')?.close()
+        ],
+
+        signInBtn: ['click', signIn],
+        signUpBtn: ['click', signUp],
+        signOutBtn: ['click', signOut],
+        guestBtn: ['click', continueAsGuest]
+    };
+
+    for (const [id, [event, handler]] of Object.entries(events)) {
+        const element = $(id);
+
+        if (element) {
+            element.addEventListener(event, handler);
+        }
     }
 
-    if (autoBtn) {
-        autoBtn.addEventListener(
-            'click',
-            toggleAutoRoll
-        );
-    }
+    document.addEventListener('keydown', event => {
+        const tag =
+            document.activeElement?.tagName;
 
-    if (resetBtn) {
-        resetBtn.addEventListener(
-            'click',
-            resetStats
-        );
-    }
+        if (
+            event.code === 'Space' &&
+            !event.repeat &&
+            !['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)
+        ) {
+            event.preventDefault();
 
-    if (clearHistoryBtn) {
-        clearHistoryBtn.addEventListener(
-            'click',
-            clearHistory
-        );
-    }
-
-    if (anomalyStat) {
-        anomalyStat.addEventListener(
-            'click',
-            function () {
-                openDetails('anomaly');
-            }
-        );
-    }
-
-    if (mythicStat) {
-        mythicStat.addEventListener(
-            'click',
-            function () {
-                openDetails('mythic');
-            }
-        );
-    }
-
-    if (holyStat) {
-        holyStat.addEventListener(
-            'click',
-            function () {
-                openDetails('holy');
-            }
-        );
-    }
-
-    if (
-        accountBtn &&
-        accountDialog
-    ) {
-        accountBtn.addEventListener(
-            'click',
-            function () {
-                accountDialog.showModal();
-            }
-        );
-    }
-
-    if (
-        accountClose &&
-        accountDialog
-    ) {
-        accountClose.addEventListener(
-            'click',
-            function () {
-                accountDialog.close();
-            }
-        );
-    }
-
-    if (
-        detailsClose &&
-        detailsDialog
-    ) {
-        detailsClose.addEventListener(
-            'click',
-            function () {
-                detailsDialog.close();
-            }
-        );
-    }
-
-    const signInBtn =
-        $('signInBtn');
-
-    const signUpBtn =
-        $('signUpBtn');
-
-    const signOutBtn =
-        $('signOutBtn');
-
-    const guestBtn =
-        $('guestBtn');
-
-    if (signInBtn) {
-        signInBtn.addEventListener(
-            'click',
-            signIn
-        );
-    }
-
-    if (signUpBtn) {
-        signUpBtn.addEventListener(
-            'click',
-            signUp
-        );
-    }
-
-    if (signOutBtn) {
-        signOutBtn.addEventListener(
-            'click',
-            signOut
-        );
-    }
-
-    if (guestBtn) {
-        guestBtn.addEventListener(
-            'click',
-            continueAsGuest
-        );
-    }
-
-    document.addEventListener(
-        'keydown',
-        function (event) {
-            if (
-                event.code === 'Space' &&
-                !event.repeat &&
-                document.activeElement &&
-                document.activeElement.tagName !== 'INPUT' &&
-                document.activeElement.tagName !== 'TEXTAREA' &&
-                document.activeElement.tagName !== 'SELECT'
-            ) {
-                event.preventDefault();
-
-                if (!rollLocked) {
-                    roll(false);
-                }
+            if (!rollLocked) {
+                roll();
             }
         }
-    );
+    });
 
     window.addEventListener(
         'beforeunload',
-        function () {
-            saveLocal();
-
-            /*
-            A synchronous beforeunload cannot
-            reliably wait for Supabase, so normal
-            rolls already queue cloud saves.
-            */
-        }
+        saveLocal
     );
 
     renderAll();
@@ -4694,10 +2541,7 @@ function init() {
 }
 
 
-if (
-    document.readyState ===
-    'loading'
-) {
+if (document.readyState === 'loading') {
     document.addEventListener(
         'DOMContentLoaded',
         init
