@@ -2,633 +2,479 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>RNG Vault</title>
     <meta
-        name="description"
-        content="RNG Vault — an original offline random number simulator with badges, EP, milestones and rare-number hunting."
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
     >
 
-    <link rel="stylesheet" href="./style.css">
+    <title>RNG Vault</title>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script defer src="./script.js"></script>
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+        defer
+    ></script>
+
+    <script
+        src="script.js"
+        defer
+    ></script>
 </head>
 
 <body>
 
-<header class="topbar">
-    <div class="brand">
-        <span class="brand-symbol">✦</span>
-        <span>RNG Vault</span>
-    </div>
-
-    <div class="account-area">
-        <span id="accountName">Guest</span>
-        <button id="accountBtn" class="secondary-btn">
-            Account
-        </button>
-    </div>
-</header>
-
-
-<main>
-
-    <section class="hero">
-
-        <div class="eyebrow">
-            RANDOM NUMBER SIMULATOR
+    <header class="topbar">
+        <div>
+            <h1>RNG VAULT</h1>
+            <p>Your luck. Your collection. Your vault.</p>
         </div>
-
-        <h1>
-            How lucky are you?
-        </h1>
-
-        <p class="hero-text">
-            Roll numbers, discover badges, earn EP and hunt for
-            ridiculously rare numbers.
-        </p>
-
-
-        <div class="controls">
-
-            <!-- LOCKED MINIMUM -->
-
-            <div class="input-group">
-
-                <label for="minNumber">
-                    Minimum
-                </label>
-
-                <input
-                    id="minNumber"
-                    type="number"
-                    value="0"
-                    readonly
-                    aria-readonly="true"
-                    tabindex="-1"
-                >
-
-            </div>
-
-
-            <!-- LOCKED MAXIMUM -->
-
-            <div class="input-group">
-
-                <label for="maxNumber">
-                    Maximum
-                </label>
-
-                <input
-                    id="maxNumber"
-                    type="number"
-                    value="1000000"
-                    readonly
-                    aria-readonly="true"
-                    tabindex="-1"
-                >
-
-            </div>
-
-
-            <button
-                id="rollBtn"
-                class="roll-btn"
-            >
-                ROLL
-            </button>
-
-
-            <button
-                id="autoBtn"
-                class="secondary-btn"
-            >
-                AUTO ROLL: OFF
-            </button>
-
-
-            <select
-                id="autoSpeed"
-                class="speed-select"
-            >
-
-                <option value="250">
-                    4 rolls / sec
-                </option>
-
-                <option value="500" selected>
-                    2 rolls / sec
-                </option>
-
-                <option value="1000">
-                    1 roll / sec
-                </option>
-
-                <option value="2000">
-                    1 roll / 2 sec
-                </option>
-
-            </select>
-
-
-            <button
-                id="resetBtn"
-                class="danger-btn"
-            >
-                Reset Stats
-            </button>
-
-        </div>
-
-
-        <div class="space-hint">
-            Press <kbd>SPACE</kbd> to roll
-        </div>
-
-    </section>
-
-
-    <!-- RESULT -->
-
-    <section
-        id="resultCard"
-        class="result-card"
-    >
-
-        <div class="result-label">
-            LATEST ROLL
-        </div>
-
-
-        <div
-            id="latestNumber"
-            class="latest-number"
-        >
-            —
-        </div>
-
-
-        <div
-            id="latestRarity"
-            class="latest-rarity"
-        >
-            READY
-        </div>
-
-
-        <div
-            id="latestEP"
-            class="latest-ep"
-        >
-            0 EP
-        </div>
-
-
-        <div
-            id="latestEffect"
-            class="latest-effect"
-        >
-            Roll to begin
-        </div>
-
-    </section>
-
-
-    <!-- STATS -->
-
-    <section class="stats-grid">
-
-        <div class="stat-card">
-
-            <span class="stat-label">
-                Total EP
-            </span>
-
-            <strong id="totalEp">
-                0
-            </strong>
-
-        </div>
-
-
-        <div class="stat-card">
-
-            <span class="stat-label">
-                Total Rolls
-            </span>
-
-            <strong id="totalRolls">
-                0
-            </strong>
-
-        </div>
-
-
-        <div class="stat-card">
-
-            <span class="stat-label">
-                Best EP
-            </span>
-
-            <strong id="bestEp">
-                0
-            </strong>
-
-        </div>
-
-
-        <div class="stat-card">
-
-            <span class="stat-label">
-                Best Number
-            </span>
-
-            <strong id="bestNumber">
-                —
-            </strong>
-
-        </div>
-
-
-        <!-- ANOMALIES -->
 
         <button
-            id="anomalyStat"
-            class="stat-card clickable-stat"
+            id="accountBtn"
+            class="secondary-btn"
         >
-
-            <span class="stat-label">
-                Anomalies
-            </span>
-
-            <strong id="anomalies">
-                0
-            </strong>
-
-            <small>
-                Click to view
-            </small>
-
-        </button>
-
-
-        <!-- MYTHICS -->
-
-        <button
-            id="mythicStat"
-            class="stat-card clickable-stat"
-        >
-
-            <span class="stat-label">
-                Mythics
-            </span>
-
-            <strong id="mythics">
-                0
-            </strong>
-
-            <small>
-                Click to view
-            </small>
-
-        </button>
-
-
-        <!-- HOLIES -->
-
-        <button
-            id="holyStat"
-            class="stat-card clickable-stat holy-stat"
-        >
-
-            <span class="stat-label">
-                Holies
-            </span>
-
-            <strong id="holies">
-                0
-            </strong>
-
-            <small>
-                Click to view
-            </small>
-
-        </button>
-
-
-        <!-- BADGES -->
-
-        <div class="stat-card">
-
-            <span class="stat-label">
-                Badges Found
-            </span>
-
-            <strong id="badgesFound">
-                0/0
-            </strong>
-
-        </div>
-
-    </section>
-
-
-    <!-- RARITIES -->
-
-    <section class="section">
-
-        <div class="section-heading">
-
-            <div>
-
-                <span class="section-kicker">
-                    COLLECTION
-                </span>
-
-                <h2>
-                    Rarities
-                </h2>
-
-            </div>
-
-        </div>
-
-
-        <div
-            id="rarityGrid"
-            class="rarity-grid"
-        ></div>
-
-    </section>
-
-
-    <!-- BADGES -->
-
-    <section class="section">
-
-        <div class="section-heading">
-
-            <div>
-
-                <span class="section-kicker">
-                    ACHIEVEMENTS
-                </span>
-
-                <h2>
-                    Badges
-                </h2>
-
-            </div>
-
-
-            <span
-                id="badgeCount"
-                class="section-count"
-            >
-                0/0
-            </span>
-
-        </div>
-
-
-        <div
-            id="badgeGrid"
-            class="badge-grid"
-        ></div>
-
-    </section>
-
-
-    <!-- MILESTONES -->
-
-    <section class="section">
-
-        <div class="section-heading">
-
-            <div>
-
-                <span class="section-kicker">
-                    PROGRESSION
-                </span>
-
-                <h2>
-                    Milestones
-                </h2>
-
-            </div>
-
-        </div>
-
-
-        <div
-            id="milestoneGrid"
-            class="milestone-grid"
-        ></div>
-
-    </section>
-
-
-    <!-- HISTORY -->
-
-    <section class="section">
-
-        <div class="section-heading">
-
-            <div>
-
-                <span class="section-kicker">
-                    HISTORY
-                </span>
-
-                <h2>
-                    Recent Rolls
-                </h2>
-
-            </div>
-
-
-            <button
-                id="clearHistoryBtn"
-                class="small-btn"
-            >
-                Clear
-            </button>
-
-        </div>
-
-
-        <div
-            id="historyList"
-            class="history-list"
-        ></div>
-
-    </section>
-
-</main>
-
-
-<!-- ACCOUNT MODAL -->
-
-<dialog
-    id="accountDialog"
-    class="dialog"
->
-
-    <div class="dialog-inner">
-
-        <button
-            id="closeAccountBtn"
-            class="dialog-close"
-        >
-            ×
-        </button>
-
-
-        <span class="section-kicker">
             ACCOUNT
-        </span>
+        </button>
+    </header>
 
 
-        <h2>
-            Cloud Progress
-        </h2>
+    <main class="container">
 
+        <!-- ================================
+             RESULT
+        ================================= -->
 
-        <p class="dialog-text">
-            Create an account to move your RNG Vault progress between devices.
-        </p>
+        <section class="result-section">
 
-
-        <label for="accountNameInput">
-            Username
-        </label>
-
-        <input
-            id="accountNameInput"
-            type="text"
-            maxlength="24"
-            placeholder="Your username"
-        >
-
-
-        <label for="emailInput">
-            Email
-        </label>
-
-        <input
-            id="emailInput"
-            type="email"
-            placeholder="you@example.com"
-            autocomplete="email"
-        >
-
-
-        <label for="passwordInput">
-            Password
-        </label>
-
-        <input
-            id="passwordInput"
-            type="password"
-            minlength="6"
-            placeholder="At least 6 characters"
-            autocomplete="current-password"
-        >
-
-
-        <div class="account-buttons">
-
-            <button
-                id="signInBtn"
-                class="primary-btn"
+            <div
+                id="resultCard"
+                class="result-card"
             >
-                Sign In
-            </button>
+                <div class="latest-label">
+                    LATEST ROLL
+                </div>
+
+                <div class="latest-number">
+                    —
+                </div>
+
+                <div class="latest-rarity">
+                    NO ROLLS YET
+                </div>
+
+                <div class="latest-ep">
+                    0 EP
+                </div>
+            </div>
+
+        </section>
 
 
-            <button
-                id="signUpBtn"
-                class="secondary-btn"
+        <!-- ================================
+             CONTROLS
+        ================================= -->
+
+        <section class="controls-section">
+
+            <div class="controls">
+
+                <button
+                    id="rollBtn"
+                    class="roll-btn"
+                >
+                    ROLL
+                </button>
+
+                <button
+                    id="autoBtn"
+                    class="secondary-btn"
+                >
+                    AUTO ROLL: OFF
+                </button>
+
+                <select
+                    id="autoSpeed"
+                    class="speed-select"
+                >
+                    <option value="250">
+                        4 rolls / sec
+                    </option>
+
+                    <option
+                        value="500"
+                        selected
+                    >
+                        2 rolls / sec
+                    </option>
+
+                    <option value="1000">
+                        1 roll / sec
+                    </option>
+
+                    <option value="2000">
+                        1 roll / 2 sec
+                    </option>
+                </select>
+
+                <button
+                    id="resetBtn"
+                    class="danger-btn"
+                >
+                    Reset Stats
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================================
+             STATS
+        ================================= -->
+
+        <section class="section">
+
+            <div class="section-header">
+                <h2>STATISTICS</h2>
+            </div>
+
+            <div class="stats-grid">
+
+                <div class="stat-card">
+                    <span>Total EP</span>
+                    <strong id="totalEp">
+                        0
+                    </strong>
+                </div>
+
+                <div class="stat-card">
+                    <span>Total Rolls</span>
+                    <strong id="totalRolls">
+                        0
+                    </strong>
+                </div>
+
+                <div class="stat-card">
+                    <span>Best EP</span>
+                    <strong id="bestEp">
+                        0
+                    </strong>
+                </div>
+
+                <div class="stat-card">
+                    <span>Best Number</span>
+                    <strong id="bestNumber">
+                        —
+                    </strong>
+                </div>
+
+                <div
+                    class="stat-card anomaly-stat"
+                    id="anomalyStat"
+                >
+                    <span>Anomalies</span>
+                    <strong>
+                        0
+                    </strong>
+                </div>
+
+                <div
+                    class="stat-card mythic-stat"
+                    id="mythicStat"
+                >
+                    <span>Mythics</span>
+                    <strong>
+                        0
+                    </strong>
+                </div>
+
+                <div
+                    class="stat-card holy-stat"
+                    id="holyStat"
+                >
+                    <span>Holys</span>
+                    <strong>
+                        0
+                    </strong>
+                </div>
+
+                <div class="stat-card">
+                    <span>Badges Found</span>
+                    <strong id="badgesFound">
+                        0
+                    </strong>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================================
+             RARITIES
+        ================================= -->
+
+        <section class="section">
+
+            <div class="section-header">
+                <h2>RARITIES</h2>
+            </div>
+
+            <div
+                id="rarityGrid"
+                class="rarity-grid"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================
+             BADGES
+        ================================= -->
+
+        <section class="section">
+
+            <div class="section-header">
+                <div>
+                    <h2>BADGES</h2>
+                    <p>
+                        Discover special numbers to unlock badges.
+                    </p>
+                </div>
+            </div>
+
+            <div
+                id="badgeGrid"
+                class="badge-grid"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================
+             MILESTONES
+        ================================= -->
+
+        <section class="section">
+
+            <div class="section-header">
+                <div>
+                    <h2>MILESTONES</h2>
+                    <p>
+                        Progress through the vault.
+                    </p>
+                </div>
+            </div>
+
+            <div
+                id="milestoneGrid"
+                class="milestone-grid"
+            ></div>
+
+        </section>
+
+
+        <!-- ================================
+             HISTORY
+        ================================= -->
+
+        <section class="section">
+
+            <div class="section-header">
+
+                <div>
+                    <h2>ROLL HISTORY</h2>
+                </div>
+
+                <button
+                    id="clearHistoryBtn"
+                    class="secondary-btn"
+                >
+                    CLEAR HISTORY
+                </button>
+
+            </div>
+
+            <div
+                id="historyList"
+                class="history-list"
             >
-                Create Account
-            </button>
+                <div class="empty-history">
+                    No rolls yet.
+                </div>
+            </div>
+
+        </section>
+
+    </main>
 
 
-            <button
-                id="signOutBtn"
-                class="danger-btn"
-            >
-                Sign Out
-            </button>
+    <!-- ================================
+         ACCOUNT DIALOG
+    ================================= -->
+
+    <dialog id="accountDialog">
+
+        <div class="dialog-content">
+
+            <div class="dialog-header">
+
+                <div>
+                    <h2>ACCOUNT</h2>
+
+                    <p>
+                        Save your RNG Vault progress to the cloud.
+                    </p>
+                </div>
+
+                <button
+                    id="accountClose"
+                    class="close-btn"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <div class="account-form">
+
+                <label for="accountNameInput">
+                    Display Name
+                </label>
+
+                <input
+                    id="accountNameInput"
+                    type="text"
+                    maxlength="24"
+                    placeholder="Guest"
+                >
+
+
+                <label for="emailInput">
+                    Email
+                </label>
+
+                <input
+                    id="emailInput"
+                    type="email"
+                    placeholder="you@example.com"
+                    autocomplete="email"
+                >
+
+
+                <label for="passwordInput">
+                    Password
+                </label>
+
+                <input
+                    id="passwordInput"
+                    type="password"
+                    placeholder="Password"
+                    autocomplete="current-password"
+                >
+
+
+                <div class="account-buttons">
+
+                    <button
+                        id="signInBtn"
+                        class="primary-btn"
+                    >
+                        SIGN IN
+                    </button>
+
+                    <button
+                        id="signUpBtn"
+                        class="secondary-btn"
+                    >
+                        SIGN UP
+                    </button>
+
+                    <button
+                        id="signOutBtn"
+                        class="danger-btn"
+                    >
+                        SIGN OUT
+                    </button>
+
+                    <button
+                        id="guestBtn"
+                        class="secondary-btn"
+                    >
+                        CONTINUE AS GUEST
+                    </button>
+
+                </div>
+
+
+                <div
+                    id="authStatus"
+                    class="auth-status"
+                >
+                    Checking account...
+                </div>
+
+
+                <div
+                    id="cloudNote"
+                    class="cloud-note"
+                >
+                    Local progress is always saved in this browser.
+                </div>
+
+            </div>
 
         </div>
 
-
-        <button
-            id="guestBtn"
-            class="guest-btn"
-        >
-            Continue as Guest
-        </button>
+    </dialog>
 
 
-        <p
-            id="authStatus"
-            class="auth-status"
-        >
-            Guest mode active.
-        </p>
+    <!-- ================================
+         DETAILS DIALOG
+    ================================= -->
+
+    <dialog id="detailsDialog">
+
+        <div class="dialog-content">
+
+            <div class="dialog-header">
+
+                <h2 id="detailsTitle">
+                    DETAILS
+                </h2>
+
+                <button
+                    id="detailsClose"
+                    class="close-btn"
+                >
+                    ×
+                </button>
+
+            </div>
+
+            <div id="detailsBody">
+                Nothing here yet.
+            </div>
+
+        </div>
+
+    </dialog>
 
 
-        <p
-            id="cloudNote"
-            class="cloud-note"
-        ></p>
+    <!-- ================================
+         TOASTS
+    ================================= -->
 
-    </div>
-
-</dialog>
-
-
-<!-- ANOMALY / MYTHIC / HOLY DETAILS -->
-
-<dialog
-    id="detailsDialog"
-    class="dialog"
->
-
-    <div class="dialog-inner details-inner">
-
-        <button
-            id="closeDetailsBtn"
-            class="dialog-close"
-        >
-            ×
-        </button>
-
-
-        <h2 id="detailsTitle">
-            Rare Rolls
-        </h2>
-
-
-        <div
-            id="detailsBody"
-            class="details-body"
-        ></div>
-
-    </div>
-
-</dialog>
-
-
-<div
-    id="toastContainer"
-    class="toast-container"
-></div>
-
+    <div
+        id="toastContainer"
+        class="toast-container"
+    ></div>
 
 </body>
 </html>
