@@ -3,12 +3,30 @@
 /*
 ==================================================
 RNG VAULT
-Version 4.2.0
+Version 4.3.0
 ==================================================
-LOCAL SAVE VERSION
-Supabase is disabled for now.
+SUPABASE CLOUD SAVES + LOCAL FALLBACK
 ==================================================
 */
+
+
+/* ==================================================
+   SUPABASE
+================================================== */
+
+const SUPABASE_URL =
+    'https://clwbdsfvirozyqhkfmjl.supabase.co';
+
+const SUPABASE_KEY =
+    'sb_publishable_BuEhPoAmHKSJtkZjoSh2sw__DCF63z8';
+
+const SUPABASE_CONFIGURED =
+    /^https:\/\/[^\s]+$/.test(SUPABASE_URL) &&
+    SUPABASE_KEY.length > 20;
+
+let supabaseClient = null;
+let currentUser = null;
+let cloudSaveTimer = null;
 
 
 /* ==================================================
@@ -264,6 +282,273 @@ function saveLocal() {
             'Could not save local state:',
             error
         );
+    }
+}
+
+
+/* ==================================================
+   SUPABASE HELPERS
+================================================== */
+
+function loadSupabaseLibrary() {
+    return new Promise(function (resolve) {
+        if (window.supabase) {
+            resolve(true);
+            return;
+        }
+
+        if (!SUPABASE_CONFIGURED) {
+            resolve(false);
+            return;
+        }
+
+        const existing =
+            document.querySelector(
+                'script[data-rng-vault-supabase]'
+            );
+
+        if (existing) {
+            existing.addEventListener(
+                'load',
+                function () {
+                    resolve(Boolean(window.supabase));
+                },
+                { once: true }
+            );
+
+            existing.addEventListener(
+                'error',
+                function () {
+                    resolve(false);
+                },
+                { once: true }
+            );
+
+            return;
+        }
+
+        const script =
+            document.createElement('script');
+
+        script.src =
+            'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+
+        script.async = true;
+
+        script.dataset.rngVaultSupabase = 'true';
+
+        script.onload = function () {
+            resolve(Boolean(window.supabase));
+        };
+
+        script.onerror = function () {
+            console.error(
+                'Could not load Supabase library.'
+            );
+
+            resolve(false);
+        };
+
+        document.head.appendChild(script);
+    });
+}
+
+
+async function initializeSupabase() {
+    if (!SUPABASE_CONFIGURED) {
+        return false;
+    }
+
+    const loaded =
+        await loadSupabaseLibrary();
+
+    if (!loaded || !window.supabase) {
+        return false;
+    }
+
+    try {
+        supabaseClient =
+            window.supabase.createClient(
+                SUPABASE_URL,
+                SUPABASE_KEY
+            );
+
+        const result =
+            await supabaseClient.auth.getSession();
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        currentUser =
+            result.data &&
+            result.data.session
+                ? result.data.session.user
+                : null;
+
+        supabaseClient.auth.onAuthStateChange(
+            async function (event, session) {
+                currentUser =
+                    session
+                        ? session.user
+                        : null;
+
+                if (
+                    event === 'SIGNED_IN' &&
+                    currentUser
+                ) {
+                    await loadCloudState();
+                }
+
+                updateAuthUI();
+            }
+        );
+
+        if (currentUser) {
+            await loadCloudState();
+        }
+
+        return true;
+    } catch (error) {
+        console.error(
+            'Supabase initialization error:',
+            error
+        );
+
+        supabaseClient = null;
+        currentUser = null;
+
+        return false;
+    }
+}
+
+
+async function loadCloudState() {
+    if (
+        !supabaseClient ||
+        !currentUser
+    ) {
+        return false;
+    }
+
+    try {
+        const result =
+            await supabaseClient
+                .from('game_saves')
+                .select('data')
+                .eq('user_id', currentUser.id)
+                .maybeSingle();
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        if (
+            result.data &&
+            result.data.data
+        ) {
+            state =
+                normalizeState(
+                    result.data.data
+                );
+
+            saveLocal();
+            renderAll();
+
+            return true;
+        }
+
+        /*
+        No cloud save yet.
+
+        Upload the current local state
+        to the new account.
+        */
+
+        await saveCloudState();
+
+        return true;
+    } catch (error) {
+        console.error(
+            'Could not load cloud save:',
+            error
+        );
+
+        return false;
+    }
+}
+
+
+async function saveCloudState() {
+    if (
+        !supabaseClient ||
+        !currentUser
+    ) {
+        return false;
+    }
+
+    try {
+        const result =
+            await supabaseClient
+                .from('game_saves')
+                .upsert(
+                    {
+                        user_id: currentUser.id,
+                        data: state,
+                        updated_at:
+                            new Date().toISOString()
+                    },
+                    {
+                        onConflict: 'user_id'
+                    }
+                );
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        return true;
+    } catch (error) {
+        console.error(
+            'Could not save cloud state:',
+            error
+        );
+
+        return false;
+    }
+}
+
+
+function queueCloudSave() {
+    if (
+        !supabaseClient ||
+        !currentUser
+    ) {
+        return;
+    }
+
+    if (cloudSaveTimer) {
+        clearTimeout(cloudSaveTimer);
+    }
+
+    cloudSaveTimer =
+        setTimeout(
+            function () {
+                saveCloudState();
+            },
+            500
+        );
+}
+
+
+async function saveEverything() {
+    saveLocal();
+
+    if (
+        supabaseClient &&
+        currentUser
+    ) {
+        await saveCloudState();
     }
 }
 
@@ -2072,6 +2357,7 @@ async function roll(fromAuto) {
         renderAll();
 
         saveLocal();
+        queueCloudSave();
 
         checkMilestones();
 
@@ -2249,6 +2535,7 @@ function toggleAutoRoll() {
 ================================================== */
 
 const MILESTONES = [
+
     /* EP */
 
     {
@@ -3015,6 +3302,7 @@ function checkMilestones() {
 
     if (changed) {
         saveLocal();
+        queueCloudSave();
         renderMilestones();
         renderStats();
     }
@@ -3127,9 +3415,7 @@ function renderStats() {
     }
 
     /*
-    Keep the rarity label AND the number.
-    Previously textContent replaced the whole
-    card and removed ANOMALY / MYTHIC / HOLY.
+    Keep the rarity label AND number.
     */
 
     if (anomalyStat) {
@@ -3704,7 +3990,7 @@ function playRareSound() {
    RESET
 ================================================== */
 
-function resetStats() {
+async function resetStats() {
     const confirmed =
         window.confirm(
             'Are you sure you want to reset all RNG Vault stats?'
@@ -3719,9 +4005,11 @@ function resetStats() {
     saveLocal();
     renderAll();
 
+    await saveCloudState();
+
     showToast(
         'RESET',
-        'All local statistics have been reset.',
+        'All RNG Vault statistics have been reset.',
         'reset-toast'
     );
 }
@@ -3731,7 +4019,7 @@ function resetStats() {
    CLEAR HISTORY
 ================================================== */
 
-function clearHistory() {
+async function clearHistory() {
     const confirmed =
         window.confirm(
             'Clear your roll history? Your stats will remain.'
@@ -3747,6 +4035,8 @@ function clearHistory() {
     saveLocal();
     renderAll();
 
+    await saveCloudState();
+
     showToast(
         'HISTORY CLEARED',
         'Your roll history was cleared.',
@@ -3756,8 +4046,38 @@ function clearHistory() {
 
 
 /* ==================================================
-   ACCOUNT / GUEST MODE
+   ACCOUNT / AUTH
 ================================================== */
+
+function getAccountName() {
+    const input =
+        $('accountNameInput');
+
+    return input
+        ? input.value.trim()
+        : '';
+}
+
+
+function getEmail() {
+    const input =
+        $('emailInput');
+
+    return input
+        ? input.value.trim()
+        : '';
+}
+
+
+function getPassword() {
+    const input =
+        $('passwordInput');
+
+    return input
+        ? input.value
+        : '';
+}
+
 
 function updateAuthUI() {
     const signInBtn =
@@ -3775,22 +4095,71 @@ function updateAuthUI() {
     const status =
         $('authStatus');
 
-    /*
-    Supabase is intentionally disabled.
-    Everything currently uses localStorage.
-    */
+    if (!SUPABASE_CONFIGURED) {
+        if (status) {
+            status.textContent =
+                'Guest mode active. Supabase is not configured.';
+        }
+
+        if (signInBtn) {
+            signInBtn.disabled = true;
+        }
+
+        if (signUpBtn) {
+            signUpBtn.disabled = true;
+        }
+
+        if (signOutBtn) {
+            signOutBtn.disabled = true;
+        }
+
+        if (guestBtn) {
+            guestBtn.textContent =
+                'Continue as Guest';
+        }
+
+        return;
+    }
+
+    if (currentUser) {
+        if (status) {
+            status.textContent =
+                'Cloud account active. Your progress is synced automatically.';
+        }
+
+        if (signInBtn) {
+            signInBtn.disabled = true;
+        }
+
+        if (signUpBtn) {
+            signUpBtn.disabled = true;
+        }
+
+        if (signOutBtn) {
+            signOutBtn.disabled = false;
+            signOutBtn.textContent =
+                'Sign Out';
+        }
+
+        if (guestBtn) {
+            guestBtn.textContent =
+                'Continue';
+        }
+
+        return;
+    }
 
     if (status) {
         status.textContent =
-            'Guest mode active. Your progress is saved locally on this device.';
+            'Guest mode active. Your progress is saved locally.';
     }
 
     if (signInBtn) {
-        signInBtn.disabled = true;
+        signInBtn.disabled = false;
     }
 
     if (signUpBtn) {
-        signUpBtn.disabled = true;
+        signUpBtn.disabled = false;
     }
 
     if (signOutBtn) {
@@ -3804,35 +4173,280 @@ function updateAuthUI() {
 }
 
 
-function initAuth() {
+async function initAuth() {
+    updateAuthUI();
+
+    if (!SUPABASE_CONFIGURED) {
+        return;
+    }
+
+    const initialized =
+        await initializeSupabase();
+
+    if (!initialized) {
+        if (statusExists()) {
+            const status =
+                $('authStatus');
+
+            status.textContent =
+                'Guest mode active. Could not connect to Supabase.';
+        }
+
+        return;
+    }
+
     updateAuthUI();
 }
 
 
-function signIn() {
-    showToast(
-        'CLOUD ACCOUNT',
-        'Accounts are temporarily disabled. Guest saving is active.',
-        'error-toast'
+function statusExists() {
+    return Boolean(
+        $('authStatus')
     );
 }
 
 
-function signUp() {
-    showToast(
-        'CLOUD ACCOUNT',
-        'Accounts are temporarily disabled. Guest saving is active.',
-        'error-toast'
-    );
+async function signIn() {
+    if (!supabaseClient) {
+        showToast(
+            'CLOUD ACCOUNT',
+            'Supabase is not connected yet.',
+            'error-toast'
+        );
+
+        return;
+    }
+
+    const email =
+        getEmail();
+
+    const password =
+        getPassword();
+
+    if (!email || !password) {
+        showToast(
+            'SIGN IN',
+            'Enter your email and password.',
+            'error-toast'
+        );
+
+        return;
+    }
+
+    try {
+        const result =
+            await supabaseClient.auth.signInWithPassword(
+                {
+                    email: email,
+                    password: password
+                }
+            );
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        currentUser =
+            result.data.user;
+
+        await loadCloudState();
+
+        updateAuthUI();
+
+        showToast(
+            'SIGNED IN',
+            'Your cloud save has been loaded.',
+            'success-toast'
+        );
+    } catch (error) {
+        console.error(
+            'Sign in error:',
+            error
+        );
+
+        showToast(
+            'SIGN IN FAILED',
+            error.message ||
+            'Could not sign in.',
+            'error-toast'
+        );
+    }
 }
 
 
-function signOut() {
-    showToast(
-        'GUEST MODE',
-        'You are already using local guest saving.',
-        'success-toast'
-    );
+async function signUp() {
+    if (!supabaseClient) {
+        showToast(
+            'CLOUD ACCOUNT',
+            'Supabase is not connected yet.',
+            'error-toast'
+        );
+
+        return;
+    }
+
+    const accountName =
+        getAccountName();
+
+    const email =
+        getEmail();
+
+    const password =
+        getPassword();
+
+    if (!accountName) {
+        showToast(
+            'SIGN UP',
+            'Enter an account name.',
+            'error-toast'
+        );
+
+        return;
+    }
+
+    if (!email || !password) {
+        showToast(
+            'SIGN UP',
+            'Enter your email and password.',
+            'error-toast'
+        );
+
+        return;
+    }
+
+    if (password.length < 6) {
+        showToast(
+            'SIGN UP',
+            'Password must be at least 6 characters.',
+            'error-toast'
+        );
+
+        return;
+    }
+
+    try {
+        const result =
+            await supabaseClient.auth.signUp(
+                {
+                    email: email,
+                    password: password,
+                    options: {
+                        data: {
+                            username:
+                                accountName
+                        }
+                    }
+                }
+            );
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        state.username =
+            accountName;
+
+        saveLocal();
+        renderStats();
+
+        /*
+        Supabase may require email
+        confirmation depending on the
+        project's Auth settings.
+        */
+
+        if (
+            result.data &&
+            result.data.session
+        ) {
+            currentUser =
+                result.data.user;
+
+            await saveCloudState();
+
+            updateAuthUI();
+
+            showToast(
+                'ACCOUNT CREATED',
+                'Your account was created and your save is synced.',
+                'success-toast'
+            );
+        } else {
+            showToast(
+                'ACCOUNT CREATED',
+                'Check your email to confirm your account, then sign in.',
+                'success-toast'
+            );
+        }
+    } catch (error) {
+        console.error(
+            'Sign up error:',
+            error
+        );
+
+        showToast(
+            'SIGN UP FAILED',
+            error.message ||
+            'Could not create account.',
+            'error-toast'
+        );
+    }
+}
+
+
+async function signOut() {
+    if (
+        !supabaseClient ||
+        !currentUser
+    ) {
+        showToast(
+            'GUEST MODE',
+            'You are already using local guest saving.',
+            'success-toast'
+        );
+
+        return;
+    }
+
+    try {
+        await saveCloudState();
+
+        const result =
+            await supabaseClient.auth.signOut();
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        currentUser = null;
+
+        /*
+        Keep the currently loaded state
+        locally so the user does not
+        suddenly lose their progress.
+        */
+
+        saveLocal();
+        updateAuthUI();
+
+        showToast(
+            'SIGNED OUT',
+            'Cloud account disconnected. Local saving is still active.',
+            'success-toast'
+        );
+    } catch (error) {
+        console.error(
+            'Sign out error:',
+            error
+        );
+
+        showToast(
+            'SIGN OUT FAILED',
+            error.message ||
+            'Could not sign out.',
+            'error-toast'
+        );
+    }
 }
 
 
@@ -3846,7 +4460,9 @@ function continueAsGuest() {
 
     showToast(
         'GUEST MODE',
-        'Your progress is saved locally.',
+        currentUser
+            ? 'Your cloud account remains signed in.'
+            : 'Your progress is saved locally.',
         'success-toast'
     );
 }
@@ -4064,6 +4680,12 @@ function init() {
         'beforeunload',
         function () {
             saveLocal();
+
+            /*
+            A synchronous beforeunload cannot
+            reliably wait for Supabase, so normal
+            rolls already queue cloud saves.
+            */
         }
     );
 
