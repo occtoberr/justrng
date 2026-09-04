@@ -1,12 +1,9 @@
-```javascript
 'use strict';
 
 /*
 ==================================================
 RNG VAULT
-Version 4.0.0
-==================================================
-EP-BASED RARITY SYSTEM
+Version 4.1.0
 ==================================================
 */
 
@@ -19,135 +16,96 @@ const SUPABASE_CONFIGURED =
 
 const supabaseClient =
     SUPABASE_CONFIGURED && window.supabase
-        ? window.supabase.createClient(
-            SUPABASE_URL,
-            SUPABASE_KEY
-        )
+        ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
         : null;
 
 
-/* =========================
-   GENERAL SETTINGS
-========================= */
+/* ==================================================
+   SETTINGS
+================================================== */
 
 const STORAGE_KEY = 'rng-vault-v3';
-
 const MAX_NUMBER = 1000000;
-
 const MAX_HISTORY = 60;
-
 const MAX_RARE_HISTORY = 150;
 
 
-/*
-==================================================
-RARITY IS NOW BASED ON EP
-==================================================
-
-The number itself no longer determines rarity.
-
-EP thresholds:
-
-0 - 99        TRASH
-100 - 999     COMMON
-1K - 9,999    UNCOMMON
-10K - 49,999  RARE
-50K - 149,999 EPIC
-150K - 499,999 ANOMALY
-500K - 799,999 MYTHIC
-800K+         HOLY
-==================================================
-*/
+/* ==================================================
+   RARITIES
+================================================== */
 
 const RARITIES = [
-
     {
-        name: 'TRASH',
-        minEP: 0,
-        maxEP: 99,
-        label: '0–99 EP'
+        id: 'TRASH',
+        label: 'TRASH',
+        min: 0,
+        max: 99
     },
-
     {
-        name: 'COMMON',
-        minEP: 100,
-        maxEP: 999,
-        label: '100–999 EP'
+        id: 'COMMON',
+        label: 'COMMON',
+        min: 100,
+        max: 999
     },
-
     {
-        name: 'UNCOMMON',
-        minEP: 1000,
-        maxEP: 9999,
-        label: '1K–9.99K EP'
+        id: 'UNCOMMON',
+        label: 'UNCOMMON',
+        min: 1000,
+        max: 9999
     },
-
     {
-        name: 'RARE',
-        minEP: 10000,
-        maxEP: 49999,
-        label: '10K–49.99K EP'
+        id: 'RARE',
+        label: 'RARE',
+        min: 10000,
+        max: 49999
     },
-
     {
-        name: 'EPIC',
-        minEP: 50000,
-        maxEP: 149999,
-        label: '50K–149.99K EP'
+        id: 'EPIC',
+        label: 'EPIC',
+        min: 50000,
+        max: 149999
     },
-
     {
-        name: 'ANOMALY',
-        minEP: 150000,
-        maxEP: 499999,
-        label: '150K–499.99K EP'
+        id: 'ANOMALY',
+        label: 'ANOMALY',
+        min: 150000,
+        max: 499999
     },
-
     {
-        name: 'MYTHIC',
-        minEP: 500000,
-        maxEP: 799999,
-        label: '500K–799.99K EP'
+        id: 'MYTHIC',
+        label: 'MYTHIC',
+        min: 500000,
+        max: 799999
     },
-
     {
-        name: 'HOLY',
-        minEP: 800000,
-        maxEP: Infinity,
-        label: '800K+ EP'
+        id: 'HOLY',
+        label: 'HOLY',
+        min: 800000,
+        max: Infinity
     }
-
 ];
 
 
-/* =========================
-   DEFAULT SAVE
-========================= */
+/* ==================================================
+   DEFAULT STATE
+================================================== */
 
 const DEFAULT_STATE = {
-
     version: 4,
-
     username: 'Guest',
 
     totalEp: 0,
-
     totalRolls: 0,
 
     bestEp: 0,
-
     bestNumber: null,
 
     mythics: 0,
-
     holys: 0,
-
     anomalies: 0,
-
     epics: 0,
 
     rarityCounts: {
-
         TRASH: 0,
         COMMON: 0,
         UNCOMMON: 0,
@@ -156,521 +114,278 @@ const DEFAULT_STATE = {
         ANOMALY: 0,
         MYTHIC: 0,
         HOLY: 0
-
     },
 
     foundBadges: {},
 
     history: [],
-
     rareHistory: [],
 
     milestonesClaimed: []
-
 };
 
 
-/* =========================
-   GLOBAL STATE
-========================= */
-
 let state = loadLocalState();
-
-let currentUser = null;
-
+let rollLocked = false;
+let autoRunning = false;
+let audioContext = null;
 let cloudSaveTimer = null;
 
-let autoTimer = null;
 
-let rollLocked = false;
+/* ==================================================
+   DOM HELPERS
+================================================== */
 
-let audioContext = null;
-
-
-/* =========================
-   SHORT DOM HELPER
-========================= */
-
-const $ = id =>
-    document.getElementById(id);
-
-
-/* =========================
-   STATE HELPERS
-========================= */
-
-function cloneDefault() {
-
-    return JSON.parse(
-        JSON.stringify(DEFAULT_STATE)
-    );
-
+function $(id) {
+    return document.getElementById(id);
 }
 
 
-function normalizeState(raw) {
+/* ==================================================
+   STATE
+================================================== */
 
-    const result = cloneDefault();
+function cloneDefaultState() {
+    return JSON.parse(JSON.stringify(DEFAULT_STATE));
+}
 
-    if (
-        !raw ||
-        typeof raw !== 'object'
-    ) {
 
-        return result;
+function normalizeState(data) {
+    const base = cloneDefaultState();
 
+    if (!data || typeof data !== 'object') {
+        return base;
     }
 
-    Object.assign(
-        result,
-        raw
-    );
+    Object.assign(base, data);
 
-    result.version = 4;
+    base.version = 4;
 
-    result.rarityCounts = {
-
-        ...DEFAULT_STATE.rarityCounts,
-
-        ...(raw.rarityCounts || {})
-
-    };
-
-    /*
-    Migrate old saves.
-    */
-
-    result.holys =
-        Number(raw.holys) || 0;
-
-    /*
-    Old saves did not have HOLY.
-    */
-
-    if (
-        !result.rarityCounts.HOLY
-    ) {
-
-        result.rarityCounts.HOLY = 0;
-
+    if (typeof base.username !== 'string' || !base.username.trim()) {
+        base.username = 'Guest';
     }
 
-    result.foundBadges =
-        raw.foundBadges &&
-        typeof raw.foundBadges === 'object'
-            ? raw.foundBadges
-            : {};
+    base.totalEp = Number(base.totalEp) || 0;
+    base.totalRolls = Number(base.totalRolls) || 0;
+    base.bestEp = Number(base.bestEp) || 0;
 
-    result.history =
-        Array.isArray(raw.history)
-            ? raw.history.slice(
-                0,
-                MAX_HISTORY
-            )
-            : [];
+    if (
+        base.bestNumber !== null &&
+        base.bestNumber !== undefined
+    ) {
+        const parsedBest = Number(base.bestNumber);
 
-    result.rareHistory =
-        Array.isArray(raw.rareHistory)
-            ? raw.rareHistory.slice(
-                0,
-                MAX_RARE_HISTORY
-            )
-            : [];
+        base.bestNumber = Number.isFinite(parsedBest)
+            ? parsedBest
+            : null;
+    } else {
+        base.bestNumber = null;
+    }
 
-    result.milestonesClaimed =
-        Array.isArray(
-            raw.milestonesClaimed
-        )
-            ? raw.milestonesClaimed
-            : [];
+    base.mythics = Number(base.mythics) || 0;
+    base.holys = Number(base.holys) || 0;
+    base.anomalies = Number(base.anomalies) || 0;
+    base.epics = Number(base.epics) || 0;
 
-    result.totalEp =
-        Number(result.totalEp) || 0;
+    if (!base.rarityCounts || typeof base.rarityCounts !== 'object') {
+        base.rarityCounts = {};
+    }
 
-    result.totalRolls =
-        Number(result.totalRolls) || 0;
+    for (const rarity of RARITIES) {
+        base.rarityCounts[rarity.id] =
+            Number(base.rarityCounts[rarity.id]) || 0;
+    }
 
-    result.bestEp =
-        Number(result.bestEp) || 0;
+    if (!base.foundBadges || typeof base.foundBadges !== 'object') {
+        base.foundBadges = {};
+    }
 
-    result.mythics =
-        Number(result.mythics) || 0;
+    if (!Array.isArray(base.history)) {
+        base.history = [];
+    }
 
-    result.anomalies =
-        Number(result.anomalies) || 0;
+    if (!Array.isArray(base.rareHistory)) {
+        base.rareHistory = [];
+    }
 
-    result.epics =
-        Number(result.epics) || 0;
+    if (!Array.isArray(base.milestonesClaimed)) {
+        base.milestonesClaimed = [];
+    }
 
-    return result;
+    base.history = base.history.slice(0, MAX_HISTORY);
+    base.rareHistory = base.rareHistory.slice(0, MAX_RARE_HISTORY);
 
+    return base;
 }
 
 
 function loadLocalState() {
-
     try {
+        const raw = localStorage.getItem(STORAGE_KEY);
 
-        const saved =
-            JSON.parse(
-                localStorage.getItem(
-                    STORAGE_KEY
-                )
-            );
+        if (!raw) {
+            return cloneDefaultState();
+        }
 
-        return normalizeState(
-            saved
-        );
-
-    } catch {
-
-        return cloneDefault();
-
+        return normalizeState(JSON.parse(raw));
+    } catch (error) {
+        console.error('Could not load local save:', error);
+        return cloneDefaultState();
     }
-
 }
 
 
 function saveLocal() {
-
     try {
-
         localStorage.setItem(
             STORAGE_KEY,
             JSON.stringify(state)
         );
-
     } catch (error) {
-
-        console.warn(
-            'Local save failed:',
-            error
-        );
-
+        console.error('Could not save local state:', error);
     }
-
 }
 
 
-/* =========================
+/* ==================================================
    CLOUD SAVE
-========================= */
+================================================== */
 
 function scheduleCloudSave() {
-
-    saveLocal();
-
-    if (
-        !currentUser ||
-        !supabaseClient
-    ) {
-
+    if (!supabaseClient) {
         return;
-
     }
 
-    clearTimeout(
-        cloudSaveTimer
-    );
+    clearTimeout(cloudSaveTimer);
 
-    cloudSaveTimer =
-        setTimeout(
-            saveCloud,
-            500
-        );
-
+    cloudSaveTimer = setTimeout(function () {
+        saveCloud();
+    }, 1000);
 }
 
 
 async function saveCloud() {
-
-    if (
-        !currentUser ||
-        !supabaseClient
-    ) {
-
+    if (!supabaseClient) {
         return;
-
     }
 
-    const payload = {
+    try {
+        const result = await supabaseClient.auth.getUser();
 
-        user_id:
-            currentUser.id,
+        if (!result || !result.data || !result.data.user) {
+            return;
+        }
 
-        data:
-            state,
+        const user = result.data.user;
 
-        updated_at:
-            new Date().toISOString()
-
-    };
-
-    const {
-        error
-    } =
         await supabaseClient
             .from('game_saves')
-            .upsert(
-                payload,
-                {
-                    onConflict:
-                        'user_id'
-                }
-            );
-
-    if (error) {
-
-        console.error(error);
-
-        setAuthStatus(
-            'Cloud save failed. Local progress is still safe.',
-            true
-        );
-
-    } else {
-
-        setAuthStatus(
-            'Cloud save synced.'
-        );
-
+            .upsert({
+                user_id: user.id,
+                data: state,
+                updated_at: new Date().toISOString()
+            });
+    } catch (error) {
+        console.error('Cloud save failed:', error);
     }
-
 }
 
 
-async function loadCloudForUser(
-    user
-) {
-
+async function loadCloud() {
     if (!supabaseClient) {
-
         return;
-
     }
 
-    setAuthStatus(
-        'Loading your cloud save...'
-    );
+    try {
+        const result = await supabaseClient.auth.getUser();
 
-    const {
-        data,
-        error
-    } =
-        await supabaseClient
+        if (!result || !result.data || !result.data.user) {
+            return;
+        }
+
+        const user = result.data.user;
+
+        const response = await supabaseClient
             .from('game_saves')
             .select('data')
-            .eq(
-                'user_id',
-                user.id
-            )
+            .eq('user_id', user.id)
             .maybeSingle();
 
-    if (error) {
-
-        console.error(error);
-
-        setAuthStatus(
-            'Could not load cloud save. Local progress kept.',
-            true
-        );
-
-        return;
-
-    }
-
-    if (
-        data &&
-        data.data &&
-        typeof data.data === 'object'
-    ) {
-
-        state =
-            normalizeState(
-                data.data
-            );
-
         if (
-            user.user_metadata &&
-            user.user_metadata.username
+            response &&
+            response.data &&
+            response.data.data
         ) {
-
-            state.username =
-                String(
-                    user.user_metadata.username
-                ).slice(
-                    0,
-                    24
-                );
-
+            state = normalizeState(response.data.data);
+            saveLocal();
+            renderAll();
         }
-
-        saveLocal();
-
-        renderAll();
-
-        setAuthStatus(
-            'Cloud save loaded.'
-        );
-
-    } else {
-
-        if (
-            user.user_metadata &&
-            user.user_metadata.username
-        ) {
-
-            state.username =
-                String(
-                    user.user_metadata.username
-                ).slice(
-                    0,
-                    24
-                );
-
-        }
-
-        await saveCloud();
-
-        renderAll();
-
+    } catch (error) {
+        console.error('Cloud load failed:', error);
     }
-
 }
 
 
-/* =========================
-   AUTH STATUS
-========================= */
-
-function setAuthStatus(
-    text,
-    error = false
-) {
-
-    const element =
-        $('authStatus');
-
-    if (!element) {
-
-        return;
-
-    }
-
-    element.textContent =
-        text;
-
-    element.classList.toggle(
-        'error',
-        error
-    );
-
-}
-
-
-/* =========================
+/* ==================================================
    NUMBER HELPERS
-========================= */
+================================================== */
 
-function formatNumber(
-    number
-) {
-
-    return Number(number)
-        .toLocaleString(
-            'en-US'
-        );
-
+function randomInt(min, max) {
+    return Math.floor(
+        Math.random() * (max - min + 1)
+    ) + min;
 }
 
 
-function formatEP(
-    number
-) {
+function formatNumber(number) {
+    return Number(number).toLocaleString('en-US');
+}
 
-    return Number(number)
-        .toLocaleString(
-            'en-US'
-        );
 
+function formatEP(ep) {
+    return Number(ep).toLocaleString('en-US');
 }
 
 
 function pad(number) {
-
-    return String(number)
-        .padStart(
-            6,
-            '0'
-        );
-
+    return String(number).padStart(6, '0');
 }
 
 
 function digits(number) {
-
     return pad(number)
         .split('')
-        .map(Number);
-
+        .map(function (digit) {
+            return Number(digit);
+        });
 }
 
 
-function digitSum(number) {
-
-    return digits(number)
-        .reduce(
-            (a, b) =>
-                a + b,
-            0
-        );
-
+function digitSum(ds) {
+    return ds.reduce(function (sum, digit) {
+        return sum + digit;
+    }, 0);
 }
 
 
-function isPalindrome(
-    number
-) {
+function isPalindrome(value) {
+    const str = pad(value);
 
-    const string =
-        pad(number);
-
-    return (
-        string ===
-        string
-            .split('')
-            .reverse()
-            .join('')
-    );
-
+    return str === str.split('').reverse().join('');
 }
 
 
-function isPrime(
-    number
-) {
-
-    if (
-        number < 2 ||
-        !Number.isInteger(number)
-    ) {
-
+function isPrime(number) {
+    if (number < 2) {
         return false;
-
     }
 
     if (number === 2) {
-
         return true;
-
     }
 
-    if (
-        number % 2 === 0
-    ) {
-
+    if (number % 2 === 0) {
         return false;
-
     }
 
     for (
@@ -678,3396 +393,3053 @@ function isPrime(
         i * i <= number;
         i += 2
     ) {
-
-        if (
-            number % i === 0
-        ) {
-
+        if (number % i === 0) {
             return false;
-
         }
-
     }
 
     return true;
-
 }
 
 
-function isPower(
-    number,
-    base
-) {
-
+function isPower(number, base) {
     if (number < 1) {
-
         return false;
-
     }
 
-    let value =
-        number;
+    let value = number;
 
-    while (
-        value % base === 0
-    ) {
-
+    while (value % base === 0) {
         value /= base;
-
     }
 
     return value === 1;
-
 }
 
 
-function isFibonacci(
-    number
-) {
-
-    let a = 0;
-
-    let b = 1;
-
-    while (
-        b < number
-    ) {
-
-        [
-            a,
-            b
-        ] = [
-            b,
-            a + b
-        ];
-
+function isFibonacci(number) {
+    function isSquare(value) {
+        const root = Math.floor(Math.sqrt(value));
+        return root * root === value;
     }
 
     return (
-        number === 0 ||
-        b === number
+        isSquare(5 * number * number + 4) ||
+        isSquare(5 * number * number - 4)
     );
-
 }
 
 
-/* =========================
-   EP-BASED RARITY
-========================= */
+function factorial(n) {
+    if (n < 0 || n > 10) {
+        return null;
+    }
 
-function getRarityFromEP(
-    ep
-) {
+    let result = 1;
 
-    const value =
-        Math.max(
-            0,
-            Number(ep) || 0
-        );
+    for (let i = 2; i <= n; i++) {
+        result *= i;
+    }
 
-    const rarity =
-        RARITIES.find(
-            entry =>
-                value >= entry.minEP &&
-                value <= entry.maxEP
-        );
-
-    return rarity
-        ? rarity.name
-        : 'TRASH';
-
+    return result;
 }
 
 
-/* =========================
+function productOfDigits(ds) {
+    if (!ds.length) {
+        return 0;
+    }
+
+    return ds.reduce(function (product, digit) {
+        return product * digit;
+    }, 1);
+}
+
+
+/* ==================================================
+   RARITY
+================================================== */
+
+function getRarityFromEP(ep) {
+    for (const rarity of RARITIES) {
+        if (
+            ep >= rarity.min &&
+            ep <= rarity.max
+        ) {
+            return rarity;
+        }
+    }
+
+    return RARITIES[RARITIES.length - 1];
+}
+
+
+/* ==================================================
+   BALANCED BASE EP
+================================================== */
+
+function rollBaseEP() {
+    const roll = Math.random();
+
+    /*
+    Balanced distribution:
+    
+    TRASH      1%
+    COMMON    49%
+    UNCOMMON  25%
+    RARE      15%
+    EPIC       7%
+    ANOMALY    2.9%
+    MYTHIC     0.09%
+    HOLY       0.01%
+    */
+
+    if (roll < 0.01) {
+        return randomInt(0, 99);
+    }
+
+    if (roll < 0.50) {
+        return randomInt(100, 999);
+    }
+
+    if (roll < 0.75) {
+        return randomInt(1000, 9999);
+    }
+
+    if (roll < 0.90) {
+        return randomInt(10000, 49999);
+    }
+
+    if (roll < 0.97) {
+        return randomInt(50000, 149999);
+    }
+
+    if (roll < 0.999) {
+        return randomInt(150000, 499999);
+    }
+
+    if (roll < 0.9999) {
+        return randomInt(500000, 799999);
+    }
+
+    return randomInt(800000, 1000000);
+}
+
+
+/* ==================================================
    BADGES
-========================= */
+================================================== */
 
-const badgeDefs = [];
-
-
-function addBadge(
-    id,
-    name,
-    ep,
-    description,
-    test
-) {
-
-    badgeDefs.push({
-
-        id,
-
-        name,
-
-        ep,
-
-        description,
-
-        test
-
+function addBadge(id, name, ep, description, test) {
+    badgeDefinitions.push({
+        id: id,
+        name: name,
+        ep: ep,
+        description: description,
+        test: test
     });
-
 }
 
 
-/* =========================
-   EXACT NUMBER BADGES
-========================= */
-
-addBadge(
-    'zero',
-    'Absolute Zero',
-    12000,
-    'Roll exactly 0.',
-    n => n === 0
-);
-
-addBadge(
-    'one',
-    'The One',
-    10000,
-    'Roll exactly 1.',
-    n => n === 1
-);
-
-addBadge(
-    'two',
-    'Deuce',
-    4000,
-    'Roll exactly 2.',
-    n => n === 2
-);
-
-addBadge(
-    'three',
-    'Three',
-    4000,
-    'Roll exactly 3.',
-    n => n === 3
-);
-
-addBadge(
-    'seven_exact',
-    'Lucky Seven',
-    6000,
-    'Roll exactly 7.',
-    n => n === 7
-);
-
-addBadge(
-    'eight',
-    'Eight',
-    3500,
-    'Roll exactly 8.',
-    n => n === 8
-);
-
-addBadge(
-    'nine',
-    'Nine',
-    3500,
-    'Roll exactly 9.',
-    n => n === 9
-);
-
-addBadge(
-    'sixtyseven',
-    'Seventh Heaven',
-    2500,
-    'Roll exactly 67.',
-    n => n === 67
-);
+const badgeDefinitions = [];
 
 
-/* =========================
-   GENERAL BADGES
-========================= */
+/* ---------------- General ---------------- */
 
 addBadge(
     'even',
-    'Even Steven',
-    25,
-    'An even number.',
-    n => n % 2 === 0
+    'Even',
+    5,
+    'The number is even',
+    function (n) {
+        return n % 2 === 0;
+    }
 );
 
 addBadge(
     'odd',
-    'Odd One Out',
-    25,
-    'An odd number.',
-    n => n % 2 !== 0
+    'Odd',
+    5,
+    'The number is odd',
+    function (n) {
+        return n % 2 === 1;
+    }
 );
 
 addBadge(
     'prime',
-    'Prime Time',
-    700,
-    'A prime number.',
-    isPrime
+    'Prime',
+    150,
+    'The number is prime',
+    function (n) {
+        return isPrime(n);
+    }
 );
 
 addBadge(
     'pal',
-    'Mirror',
-    2500,
-    'A six-digit palindrome.',
-    isPalindrome
+    'Palindrome',
+    500,
+    'Reads the same forwards and backwards',
+    function (n) {
+        return isPalindrome(n);
+    }
 );
 
 addBadge(
     'repeat',
-    'Double Vision',
-    500,
-    'Contains adjacent repeated digits.',
-    n =>
-        /(\d)\1/.test(
-            pad(n)
-        )
+    'Repeating Digit',
+    100,
+    'Contains a repeated digit',
+    function (n) {
+        const ds = digits(n);
+        return new Set(ds).size < 6;
+    }
 );
 
 addBadge(
-    'asc',
+    'ascending',
     'Ascending',
-    2200,
-    'Digits never decrease.',
-    n =>
-        digits(n).every(
-            (
-                digit,
-                index,
-                array
-            ) =>
-                index === 0 ||
-                digit >=
-                array[index - 1]
-        )
+    300,
+    'Digits never decrease',
+    function (n) {
+        const ds = digits(n);
+
+        for (let i = 1; i < ds.length; i++) {
+            if (ds[i] < ds[i - 1]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 );
 
 addBadge(
-    'desc',
+    'descending',
     'Descending',
-    2200,
-    'Digits never increase.',
-    n =>
-        digits(n).every(
-            (
-                digit,
-                index,
-                array
-            ) =>
-                index === 0 ||
-                digit <=
-                array[index - 1]
-        )
+    300,
+    'Digits never increase',
+    function (n) {
+        const ds = digits(n);
+
+        for (let i = 1; i < ds.length; i++) {
+            if (ds[i] > ds[i - 1]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 );
 
 addBadge(
     'neighbors',
-    'Neighbors',
-    900,
-    'Contains consecutive digits.',
-    n =>
-        /01|12|23|34|45|56|67|78|89/
-            .test(
-                pad(n)
-            )
+    'Neighbor Digits',
+    150,
+    'Contains two neighboring digits',
+    function (n) {
+        const ds = digits(n);
+
+        for (let i = 1; i < ds.length; i++) {
+            if (Math.abs(ds[i] - ds[i - 1]) === 1) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 );
 
 addBadge(
     'hetero',
     'Heterogeneous',
-    600,
-    'All non-zero digits are different.',
-    n => {
-
-        const values =
-            digits(n)
-                .filter(Boolean);
-
-        return (
-            new Set(values).size ===
-            values.length
-        );
-
+    100,
+    'Contains at least four different digits',
+    function (n) {
+        return new Set(digits(n)).size >= 4;
     }
 );
 
 addBadge(
     'harshad',
     'Harshad',
-    3000,
-    'Divisible by its digit sum.',
-    n =>
-        n > 0 &&
-        n % digitSum(n) === 0
+    500,
+    'Divisible by its digit sum',
+    function (n) {
+        const sum = digitSum(digits(n));
+
+        return sum > 0 && n % sum === 0;
+    }
 );
 
 addBadge(
     'square',
     'Perfect Square',
-    5000,
-    'A perfect square.',
-    n =>
-        Number.isInteger(
-            Math.sqrt(n)
-        )
+    1000,
+    'The number is a perfect square',
+    function (n) {
+        const root = Math.floor(Math.sqrt(n));
+        return root * root === n;
+    }
 );
 
 addBadge(
     'power2',
-    'Power of Two',
-    7500,
-    'A power of two.',
-    n =>
-        n > 0 &&
-        (n & (n - 1)) === 0
+    'Power of 2',
+    1500,
+    'The number is a power of two',
+    function (n) {
+        return isPower(n, 2);
+    }
 );
 
 addBadge(
     'power3',
-    'Power of Three',
-    10000,
-    'A power of three.',
-    n =>
-        isPower(n, 3)
+    'Power of 3',
+    2500,
+    'The number is a power of three',
+    function (n) {
+        return isPower(n, 3);
+    }
 );
 
 addBadge(
-    'fibo',
+    'fibonacci',
     'Fibonacci',
-    6500,
-    'A Fibonacci number.',
-    isFibonacci
+    1200,
+    'The number is in the Fibonacci sequence',
+    function (n) {
+        return isFibonacci(n);
+    }
 );
 
 addBadge(
     'factorial',
     'Factorial',
-    12000,
-    'A small factorial value.',
-    n =>
-        [
-            1,
-            2,
-            6,
-            24,
-            120,
-            720,
-            5040,
-            40320,
-            362880
-        ].includes(n)
+    3500,
+    'The number is a factorial',
+    function (n) {
+        for (let i = 0; i <= 10; i++) {
+            if (factorial(i) === n) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 );
 
 addBadge(
     'triple',
-    'Triple',
-    6000,
-    'Three equal digits in a row.',
-    n =>
-        /(\d)\1\1/.test(
-            pad(n)
-        )
+    'Triple Digit',
+    800,
+    'Contains three identical digits',
+    function (n) {
+        const ds = digits(n);
+
+        for (let i = 0; i < ds.length - 2; i++) {
+            if (
+                ds[i] === ds[i + 1] &&
+                ds[i] === ds[i + 2]
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 );
 
 addBadge(
     'quad',
-    'Quad',
-    18000,
-    'Four equal digits in a row.',
-    n =>
-        /(\d)\1\1\1/.test(
-            pad(n)
-        )
+    'Quad Digit',
+    3000,
+    'Contains four identical digits',
+    function (n) {
+        const ds = digits(n);
+
+        for (let i = 0; i < ds.length - 3; i++) {
+            if (
+                ds[i] === ds[i + 1] &&
+                ds[i] === ds[i + 2] &&
+                ds[i] === ds[i + 3]
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 );
 
 addBadge(
-    'twopair',
-    'Two Pairs',
-    5000,
-    'Two separate adjacent pairs.',
-    n =>
-        /(\d)\1.*(\d)\2/.test(
-            pad(n)
-        )
+    'twoPair',
+    'Two Pair',
+    700,
+    'Contains two separate digit pairs',
+    function (n) {
+        const ds = digits(n);
+        const counts = {};
+
+        ds.forEach(function (digit) {
+            counts[digit] =
+                (counts[digit] || 0) + 1;
+        });
+
+        return Object.values(counts)
+            .filter(function (count) {
+                return count >= 2;
+            }).length >= 2;
+    }
 );
 
 addBadge(
     'alternating',
     'Alternating',
-    4500,
-    'Digits alternate between odd and even.',
-    n => {
+    800,
+    'Digits alternate between two groups',
+    function (n) {
+        const ds = digits(n);
 
-        const values =
-            digits(n);
+        let evenOdd = true;
+        let oddEven = true;
 
-        return values.every(
-            (
-                value,
-                index
-            ) =>
-                index === 0 ||
-                value % 2 !==
-                values[index - 1] % 2
-        );
+        for (let i = 1; i < ds.length; i++) {
+            if (
+                ds[i] % 2 ===
+                ds[i - 1] % 2
+            ) {
+                evenOdd = false;
+                oddEven = false;
+                break;
+            }
+        }
 
+        return evenOdd || oddEven;
     }
 );
 
 addBadge(
     'spacing',
-    'Perfect Spacing',
-    9000,
-    'Equal gap between every digit.',
-    n => {
+    'Equal Spacing',
+    1800,
+    'Digits have equal spacing',
+    function (n) {
+        const ds = digits(n);
+        const difference = ds[1] - ds[0];
 
-        const values =
-            digits(n);
+        for (let i = 2; i < ds.length; i++) {
+            if (ds[i] - ds[i - 1] !== difference) {
+                return false;
+            }
+        }
 
-        const gap =
-            values[1] -
-            values[0];
+        return true;
+    }
+);
 
-        return values
-            .slice(2)
-            .every(
-                (
-                    value,
-                    index
-                ) =>
-                    value -
-                    values[index + 1] ===
-                    gap
-            );
 
+/* ---------------- Digit sums ---------------- */
+
+addBadge(
+    'sum7',
+    'Digit Sum 7',
+    400,
+    'Digits add to 7',
+    function (n) {
+        return digitSum(digits(n)) === 7;
     }
 );
 
 addBadge(
     'sum10',
     'Digit Sum 10',
-    3000,
-    'Digit sum equals 10.',
-    n =>
-        digitSum(n) === 10
+    500,
+    'Digits add to 10',
+    function (n) {
+        return digitSum(digits(n)) === 10;
+    }
+);
+
+addBadge(
+    'sum15',
+    'Digit Sum 15',
+    700,
+    'Digits add to 15',
+    function (n) {
+        return digitSum(digits(n)) === 15;
+    }
 );
 
 addBadge(
     'sum20',
     'Digit Sum 20',
-    5500,
-    'Digit sum equals 20.',
-    n =>
-        digitSum(n) === 20
+    900,
+    'Digits add to 20',
+    function (n) {
+        return digitSum(digits(n)) === 20;
+    }
+);
+
+addBadge(
+    'sum25',
+    'Digit Sum 25',
+    1000,
+    'Digits add to 25',
+    function (n) {
+        return digitSum(digits(n)) === 25;
+    }
 );
 
 addBadge(
     'sum30',
     'Digit Sum 30',
-    10000,
-    'Digit sum equals 30.',
-    n =>
-        digitSum(n) === 30
+    2000,
+    'Digits add to 30',
+    function (n) {
+        return digitSum(digits(n)) === 30;
+    }
 );
 
 addBadge(
+    'sum35',
+    'Digit Sum 35',
+    1500,
+    'Digits add to 35',
+    function (n) {
+        return digitSum(digits(n)) === 35;
+    }
+);
+
+addBadge(
+    'sum40',
+    'Digit Sum 40',
+    2500,
+    'Digits add to 40',
+    function (n) {
+        return digitSum(digits(n)) === 40;
+    }
+);
+
+addBadge(
+    'sum42',
+    'Digit Sum 42',
+    1800,
+    'Digits add to 42',
+    function (n) {
+        return digitSum(digits(n)) === 42;
+    }
+);
+
+addBadge(
+    'sum45',
+    'Digit Sum 45',
+    4000,
+    'Digits add to 45',
+    function (n) {
+        return digitSum(digits(n)) === 45;
+    }
+);
+
+
+/* ---------------- Digit patterns ---------------- */
+
+addBadge(
     'lucky13',
-    'Unlucky 13',
-    4500,
-    'Digit sum equals 13.',
-    n =>
-        digitSum(n) === 13
+    'Lucky 13',
+    700,
+    'Contains 13',
+    function (n) {
+        return pad(n).includes('13');
+    }
 );
 
 addBadge(
     'contains7',
-    'Lucky Seven',
-    1800,
-    'Contains a 7.',
-    n =>
-        pad(n).includes('7')
+    'Contains 7',
+    500,
+    'Contains the digit 7',
+    function (n) {
+        return pad(n).includes('7');
+    }
 );
 
 addBadge(
     'contains69',
-    'Nice',
-    7500,
-    'Contains 69.',
-    n =>
-        pad(n).includes('69')
+    'Contains 69',
+    1200,
+    'Contains 69',
+    function (n) {
+        return pad(n).includes('69');
+    }
+);
+
+addBadge(
+    'contains123',
+    'Contains 123',
+    1500,
+    'Contains 123',
+    function (n) {
+        return pad(n).includes('123');
+    }
+);
+
+addBadge(
+    'contains456',
+    'Contains 456',
+    1500,
+    'Contains 456',
+    function (n) {
+        return pad(n).includes('456');
+    }
+);
+
+addBadge(
+    'contains789',
+    'Contains 789',
+    1500,
+    'Contains 789',
+    function (n) {
+        return pad(n).includes('789');
+    }
+);
+
+addBadge(
+    'contains987',
+    'Contains 987',
+    1500,
+    'Contains 987',
+    function (n) {
+        return pad(n).includes('987');
+    }
 );
 
 addBadge(
     'sixdigits',
     'Six Digits',
-    50,
-    'The roll uses six displayed digits.',
-    n =>
-        n >= 100000
+    5,
+    'A full six-digit number',
+    function (n) {
+        return n >= 100000;
+    }
 );
 
 addBadge(
     'fivezeros',
-    'Zero Parade',
-    20000,
-    'Contains at least five zeroes.',
-    n =>
-        (
-            pad(n).match(
-                /0/g
-            ) || []
-        ).length >= 5
+    'Five Zeros',
+    5000,
+    'Contains five zeros',
+    function (n) {
+        return digits(n).filter(function (d) {
+            return d === 0;
+        }).length >= 5;
+    }
 );
 
 addBadge(
     'alllow',
-    'Low Roll',
-    5500,
-    'Every digit is 0–4.',
-    n =>
-        digits(n).every(
-            digit =>
-                digit <= 4
-        )
+    'All Low',
+    1000,
+    'Every digit is 0–4',
+    function (n) {
+        return digits(n).every(function (d) {
+            return d <= 4;
+        });
+    }
 );
 
 addBadge(
     'allhigh',
-    'High Roll',
-    5500,
-    'Every digit is 5–9.',
-    n =>
-        digits(n).every(
-            digit =>
-                digit >= 5
-        )
+    'All High',
+    1000,
+    'Every digit is 5–9',
+    function (n) {
+        return digits(n).every(function (d) {
+            return d >= 5;
+        });
+    }
+);
+
+addBadge(
+    'allEven',
+    'All Even',
+    1200,
+    'Every digit is even',
+    function (n) {
+        return digits(n).every(function (d) {
+            return d % 2 === 0;
+        });
+    }
+);
+
+addBadge(
+    'allOdd',
+    'All Odd',
+    1200,
+    'Every digit is odd',
+    function (n) {
+        return digits(n).every(function (d) {
+            return d % 2 === 1;
+        });
+    }
 );
 
 addBadge(
     'allunique',
-    'No Repeats',
-    6500,
-    'All six digits are different.',
-    n =>
-        new Set(
-            digits(n)
-        ).size === 6
+    'All Unique',
+    1200,
+    'Every digit is different',
+    function (n) {
+        const ds = digits(n);
+        return new Set(ds).size === 6;
+    }
+);
+
+addBadge(
+    'fourUnique',
+    'Four Unique',
+    800,
+    'Exactly four unique digits',
+    function (n) {
+        return new Set(digits(n)).size === 4;
+    }
+);
+
+addBadge(
+    'fiveUnique',
+    'Five Unique',
+    1200,
+    'Exactly five unique digits',
+    function (n) {
+        return new Set(digits(n)).size === 5;
+    }
 );
 
 addBadge(
     'threeunique',
-    'Triple Variety',
-    1200,
-    'At least three different digits.',
-    n =>
-        new Set(
-            digits(n)
-        ).size >= 3
+    'Three Unique',
+    100,
+    'Exactly three unique digits',
+    function (n) {
+        return new Set(digits(n)).size === 3;
+    }
 );
+
+
+/* ---------------- Position patterns ---------------- */
 
 addBadge(
     'center7',
-    'Center Stage',
-    5000,
-    'One of the center digits is 7.',
-    n => {
-
-        const s =
-            pad(n);
-
-        return (
-            s[2] === '7' ||
-            s[3] === '7'
-        );
-
+    'Center 7',
+    800,
+    'Middle digit is 7',
+    function (n) {
+        const ds = digits(n);
+        return ds[2] === 7 || ds[3] === 7;
     }
 );
 
 addBadge(
     'endsame',
-    'Bookends',
-    5000,
-    'First and last digits match.',
-    n => {
-
-        const s =
-            pad(n);
-
-        return (
-            s[0] === s[5]
-        );
-
-    }
-);
-
-addBadge(
-    'doublezero',
-    'Double Zero',
-    8000,
-    'Contains 00.',
-    n =>
-        pad(n).includes(
-            '00'
-        )
-);
-
-addBadge(
-    'triplezero',
-    'Triple Zero',
-    25000,
-    'Contains 000.',
-    n =>
-        pad(n).includes(
-            '000'
-        )
-);
-
-addBadge(
-    'doublefive',
-    'High Five',
-    7000,
-    'Contains 55.',
-    n =>
-        pad(n).includes(
-            '55'
-        )
-);
-
-addBadge(
-    'doubleeight',
-    'Infinity Pair',
-    7000,
-    'Contains 88.',
-    n =>
-        pad(n).includes(
-            '88'
-        )
-);
-
-addBadge(
-    'doubleone',
-    'Twin Ones',
-    7000,
-    'Contains 11.',
-    n =>
-        pad(n).includes(
-            '11'
-        )
-);
-
-addBadge(
-    'sum7',
-    'Sum of Seven',
-    2500,
-    'Digit sum equals 7.',
-    n =>
-        digitSum(n) === 7
-);
-
-addBadge(
-    'sum42',
-    'Answer',
-    12000,
-    'Digit sum equals 42.',
-    n =>
-        digitSum(n) === 42
-);
-
-addBadge(
-    'sum45',
-    'Maximum Sum',
-    20000,
-    'Digit sum equals 45.',
-    n =>
-        digitSum(n) === 45
-);
-
-addBadge(
-    'product0',
-    'Zero Product',
-    500,
-    'At least one digit is zero.',
-    n =>
-        digits(n).includes(0)
-);
-
-addBadge(
-    'product1',
-    'Unit Product',
-    10000,
-    'Digit product equals 1.',
-    n =>
-        digits(n)
-            .reduce(
-                (a, b) =>
-                    a * b,
-                1
-            ) === 1
-);
-
-addBadge(
-    'firstnine',
-    'Front Nine',
-    4500,
-    'Starts with 9.',
-    n =>
-        pad(n)[0] === '9'
-);
-
-addBadge(
-    'lastnine',
-    'Final Nine',
-    4500,
-    'Ends with 9.',
-    n =>
-        pad(n)[5] === '9'
-);
-
-addBadge(
-    'firstzero',
-    'Leading Void',
-    4500,
-    'Starts with 0.',
-    n =>
-        pad(n)[0] === '0'
-);
-
-addBadge(
-    'middleequal',
-    'Middle Match',
-    8000,
-    'The two center digits match.',
-    n => {
-
-        const s =
-            pad(n);
-
-        return (
-            s[2] === s[3]
-        );
-
+    'Matching Ends',
+    600,
+    'First and last digits match',
+    function (n) {
+        const ds = digits(n);
+        return ds[0] === ds[5];
     }
 );
 
 addBadge(
     'outerequal',
-    'Outer Match',
-    8000,
-    'Both outer pairs match.',
-    n => {
-
-        const s =
-            pad(n);
+    'Outer Equal',
+    1600,
+    'Outer digit pairs match',
+    function (n) {
+        const ds = digits(n);
 
         return (
-            s[0] === s[5] &&
-            s[1] === s[4]
+            ds[0] === ds[5] &&
+            ds[1] === ds[4]
         );
-
     }
 );
 
 addBadge(
-    'halfmirror',
-    'Half Mirror',
-    15000,
-    'First three digits equal last three.',
-    n => {
-
-        const s =
-            pad(n);
-
-        return (
-            s.slice(0, 3) ===
-            s.slice(3)
-        );
-
+    'middleequal',
+    'Middle Equal',
+    1000,
+    'Two middle digits match',
+    function (n) {
+        const ds = digits(n);
+        return ds[2] === ds[3];
     }
 );
+
+addBadge(
+    'center00',
+    'Center Double Zero',
+    1500,
+    'Middle two digits are 00',
+    function (n) {
+        const ds = digits(n);
+        return ds[2] === 0 && ds[3] === 0;
+    }
+);
+
+addBadge(
+    'firstnine',
+    'Starts 9',
+    500,
+    'Starts with 9',
+    function (n) {
+        return pad(n).startsWith('9');
+    }
+);
+
+addBadge(
+    'lastnine',
+    'Ends 9',
+    500,
+    'Ends with 9',
+    function (n) {
+        return pad(n).endsWith('9');
+    }
+);
+
+addBadge(
+    'firstzero',
+    'Leading Zero',
+    500,
+    'Starts with 0',
+    function (n) {
+        return pad(n).startsWith('0');
+    }
+);
+
+addBadge(
+    'starts69',
+    'Starts 69',
+    2500,
+    'First two digits are 69',
+    function (n) {
+        return pad(n).startsWith('69');
+    }
+);
+
+addBadge(
+    'ends69',
+    'Ends 69',
+    2500,
+    'Last two digits are 69',
+    function (n) {
+        return pad(n).endsWith('69');
+    }
+);
+
+
+/* ---------------- Special digits ---------------- */
+
+addBadge(
+    'doublezero',
+    'Double Zero',
+    900,
+    'Contains 00',
+    function (n) {
+        return pad(n).includes('00');
+    }
+);
+
+addBadge(
+    'triplezero',
+    'Triple Zero',
+    3500,
+    'Contains 000',
+    function (n) {
+        return pad(n).includes('000');
+    }
+);
+
+addBadge(
+    'doublefive',
+    'Double Five',
+    800,
+    'Contains 55',
+    function (n) {
+        return pad(n).includes('55');
+    }
+);
+
+addBadge(
+    'doubleeight',
+    'Double Eight',
+    800,
+    'Contains 88',
+    function (n) {
+        return pad(n).includes('88');
+    }
+);
+
+addBadge(
+    'doubleone',
+    'Double One',
+    800,
+    'Contains 11',
+    function (n) {
+        return pad(n).includes('11');
+    }
+);
+
+addBadge(
+    'product0',
+    'Zero Product',
+    50,
+    'Digit product is zero',
+    function (n) {
+        return productOfDigits(digits(n)) === 0;
+    }
+);
+
+addBadge(
+    'product1',
+    'Product 1',
+    1500,
+    'Digit product equals 1',
+    function (n) {
+        return productOfDigits(digits(n)) === 1;
+    }
+);
+
+
+/* ---------------- Repeating patterns ---------------- */
 
 addBadge(
     'ababab',
     'ABABAB',
-    30000,
-    'Pattern ABABAB.',
-    n => {
-
-        const s =
-            pad(n);
+    7000,
+    'Alternating repeating pair',
+    function (n) {
+        const ds = digits(n);
 
         return (
-            s[0] === s[2] &&
-            s[2] === s[4] &&
-            s[1] === s[3] &&
-            s[3] === s[5] &&
-            s[0] !== s[1]
+            ds[0] === ds[2] &&
+            ds[2] === ds[4] &&
+            ds[1] === ds[3] &&
+            ds[3] === ds[5] &&
+            ds[0] !== ds[1]
         );
-
     }
 );
 
 addBadge(
     'mirrorpair',
-    'Mirror Pairs',
-    18000,
-    'ABC CBA structure.',
-    n => {
-
-        const s =
-            pad(n);
+    'Mirror Pair',
+    4000,
+    'ABC|CBA style pattern',
+    function (n) {
+        const ds = digits(n);
 
         return (
-            s[0] === s[5] &&
-            s[1] === s[4] &&
-            s[2] === s[3]
+            ds[0] === ds[5] &&
+            ds[1] === ds[4] &&
+            ds[2] === ds[3]
         );
-
     }
 );
 
 addBadge(
     'stairup',
-    'Staircase',
-    20000,
-    'Every digit rises by one.',
-    n => {
+    'Stair Up',
+    7000,
+    'Six consecutive ascending digits',
+    function (n) {
+        const ds = digits(n);
 
-        const s =
-            pad(n);
+        for (let i = 1; i < ds.length; i++) {
+            if (ds[i] !== ds[i - 1] + 1) {
+                return false;
+            }
+        }
 
-        return s
-            .split('')
-            .every(
-                (
-                    value,
-                    index,
-                    array
-                ) =>
-                    index === 0 ||
-                    Number(value) ===
-                    Number(
-                        array[index - 1]
-                    ) + 1
-            );
-
+        return true;
     }
 );
 
 addBadge(
     'stairdown',
-    'Downstairs',
-    20000,
-    'Every digit falls by one.',
-    n => {
+    'Stair Down',
+    7000,
+    'Six consecutive descending digits',
+    function (n) {
+        const ds = digits(n);
 
-        const s =
-            pad(n);
+        for (let i = 1; i < ds.length; i++) {
+            if (ds[i] !== ds[i - 1] - 1) {
+                return false;
+            }
+        }
 
-        return s
-            .split('')
-            .every(
-                (
-                    value,
-                    index,
-                    array
-                ) =>
-                    index === 0 ||
-                    Number(value) ===
-                    Number(
-                        array[index - 1]
-                    ) - 1
-            );
-
+        return true;
     }
 );
 
 addBadge(
     'binary',
-    'Binary Soul',
-    25000,
-    'Only 0 and 1 appear.',
-    n =>
-        digits(n).every(
-            digit =>
-                digit === 0 ||
-                digit === 1
-        )
+    'Binary Digits',
+    5000,
+    'Only contains 0 and 1',
+    function (n) {
+        return digits(n).every(function (d) {
+            return d === 0 || d === 1;
+        });
+    }
 );
 
 addBadge(
+    'aabbcc',
+    'Double Pair Chain',
+    3000,
+    'AABBCC pattern',
+    function (n) {
+        const ds = digits(n);
+
+        return (
+            ds[0] === ds[1] &&
+            ds[2] === ds[3] &&
+            ds[4] === ds[5] &&
+            ds[0] !== ds[2] &&
+            ds[2] !== ds[4]
+        );
+    }
+);
+
+addBadge(
+    'twoTriples',
+    'Double Triple',
+    9000,
+    'AAABBB pattern',
+    function (n) {
+        const ds = digits(n);
+
+        return (
+            ds[0] === ds[1] &&
+            ds[1] === ds[2] &&
+            ds[3] === ds[4] &&
+            ds[4] === ds[5] &&
+            ds[0] !== ds[3]
+        );
+    }
+);
+
+addBadge(
+    'firstTriple',
+    'First Triple',
+    3500,
+    'First three digits match',
+    function (n) {
+        const ds = digits(n);
+
+        return (
+            ds[0] === ds[1] &&
+            ds[1] === ds[2]
+        );
+    }
+);
+
+addBadge(
+    'lastTriple',
+    'Last Triple',
+    3500,
+    'Last three digits match',
+    function (n) {
+        const ds = digits(n);
+
+        return (
+            ds[3] === ds[4] &&
+            ds[4] === ds[5]
+        );
+    }
+);
+
+
+/* ---------------- Exact numbers ---------------- */
+
+addBadge(
+    'exact0',
+    'Zero',
+    50000,
+    'Exactly 0',
+    function (n) {
+        return n === 0;
+    }
+);
+
+addBadge(
+    'exact1',
+    'One',
+    30000,
+    'Exactly 1',
+    function (n) {
+        return n === 1;
+    }
+);
+
+addBadge(
+    'exact2',
+    'Two',
+    20000,
+    'Exactly 2',
+    function (n) {
+        return n === 2;
+    }
+);
+
+addBadge(
+    'exact3',
+    'Three',
+    20000,
+    'Exactly 3',
+    function (n) {
+        return n === 3;
+    }
+);
+
+addBadge(
+    'exact7',
+    'Seven',
+    30000,
+    'Exactly 7',
+    function (n) {
+        return n === 7;
+    }
+);
+
+addBadge(
+    'exact8',
+    'Eight',
+    15000,
+    'Exactly 8',
+    function (n) {
+        return n === 8;
+    }
+);
+
+addBadge(
+    'exact9',
+    'Nine',
+    15000,
+    'Exactly 9',
+    function (n) {
+        return n === 9;
+    }
+);
+
+addBadge(
+    'exact67',
+    'The 67',
+    20000,
+    'Exactly 67',
+    function (n) {
+        return n === 67;
+    }
+);
+
+addBadge(
+    'exact100',
+    '100',
+    5000,
+    'Exactly 100',
+    function (n) {
+        return n === 100;
+    }
+);
+
+addBadge(
+    'exact69',
+    '69',
+    8000,
+    'Exactly 69',
+    function (n) {
+        return n === 69;
+    }
+);
+
+addBadge(
+    'exact420',
+    '420',
+    10000,
+    'Exactly 420',
+    function (n) {
+        return n === 420;
+    }
+);
+
+addBadge(
+    'exact123',
+    '123',
+    6000,
+    'Exactly 123',
+    function (n) {
+        return n === 123;
+    }
+);
+
+addBadge(
+    'exact321',
+    '321',
+    6000,
+    'Exactly 321',
+    function (n) {
+        return n === 321;
+    }
+);
+
+addBadge(
+    'exact123456',
+    '123456',
+    500000,
+    'Exactly 123456',
+    function (n) {
+        return n === 123456;
+    }
+);
+
+addBadge(
+    'exact654321',
+    '654321',
+    500000,
+    'Exactly 654321',
+    function (n) {
+        return n === 654321;
+    }
+);
+
+addBadge(
+    'exact111111',
+    '111111',
+    300000,
+    'Exactly 111111',
+    function (n) {
+        return n === 111111;
+    }
+);
+
+addBadge(
+    'exact222222',
+    '222222',
+    280000,
+    'Exactly 222222',
+    function (n) {
+        return n === 222222;
+    }
+);
+
+addBadge(
+    'exact333333',
+    '333333',
+    280000,
+    'Exactly 333333',
+    function (n) {
+        return n === 333333;
+    }
+);
+
+addBadge(
+    'exact420420',
+    '420420',
+    450000,
+    'Exactly 420420',
+    function (n) {
+        return n === 420420;
+    }
+);
+
+addBadge(
+    'exact696969',
+    '696969',
+    650000,
+    'Exactly 696969',
+    function (n) {
+        return n === 696969;
+    }
+);
+
+addBadge(
+    'exact777777',
+    '777777',
+    700000,
+    'Exactly 777777',
+    function (n) {
+        return n === 777777;
+    }
+);
+
+addBadge(
+    'exact999999',
+    '999999',
+    740000,
+    'Exactly 999999',
+    function (n) {
+        return n === 999999;
+    }
+);
+
+addBadge(
+    'exact101010',
+    '101010',
+    350000,
+    'Exactly 101010',
+    function (n) {
+        return n === 101010;
+    }
+);
+
+addBadge(
+    'exact314159',
+    '314159',
+    350000,
+    'Exactly 314159',
+    function (n) {
+        return n === 314159;
+    }
+);
+
+addBadge(
+    'exact271828',
+    '271828',
+    350000,
+    'Exactly 271828',
+    function (n) {
+        return n === 271828;
+    }
+);
+
+addBadge(
+    'exact867530',
+    '867530',
+    300000,
+    'Exactly 867530',
+    function (n) {
+        return n === 867530;
+    }
+);
+
+addBadge(
+    'exact123321',
+    '123321',
+    250000,
+    'Exactly 123321',
+    function (n) {
+        return n === 123321;
+    }
+);
+
+addBadge(
+    'exact100001',
+    '100001',
+    220000,
+    'Exactly 100001',
+    function (n) {
+        return n === 100001;
+    }
+);
+
+addBadge(
+    'exact808080',
+    '808080',
+    250000,
+    'Exactly 808080',
+    function (n) {
+        return n === 808080;
+    }
+);
+
+
+/* ---------------- All same ---------------- */
+
+addBadge(
     'allseven',
-    'Seven Heaven',
+    '777777',
     100000,
-    'Every digit is 7.',
-    n =>
-        pad(n) ===
-        '777777'
+    'Every digit is 7',
+    function (n) {
+        return pad(n) === '777777';
+    }
 );
 
 addBadge(
     'allzero',
-    'Nothingness',
-    100000,
-    'Every digit is 0.',
-    n =>
-        pad(n) ===
-        '000000'
+    '000000',
+    50000,
+    'Every digit is 0',
+    function (n) {
+        return pad(n) === '000000';
+    }
 );
 
 addBadge(
     'allnine',
-    'Nine Lives',
-    100000,
-    'Every digit is 9.',
-    n =>
-        pad(n) ===
-        '999999'
+    '999999',
+    60000,
+    'Every digit is 9',
+    function (n) {
+        return pad(n) === '999999';
+    }
 );
 
 addBadge(
     'alltwo',
-    'Two-Two-Two',
-    80000,
-    'Every digit is 2.',
-    n =>
-        pad(n) ===
-        '222222'
+    '222222',
+    50000,
+    'Every digit is 2',
+    function (n) {
+        return pad(n) === '222222';
+    }
 );
 
 addBadge(
     'allthree',
-    'Threefold',
-    80000,
-    'Every digit is 3.',
-    n =>
-        pad(n) ===
-        '333333'
+    '333333',
+    50000,
+    'Every digit is 3',
+    function (n) {
+        return pad(n) === '333333';
+    }
 );
 
 addBadge(
     'allfive',
-    'High Five x6',
-    80000,
-    'Every digit is 5.',
-    n =>
-        pad(n) ===
-        '555555'
+    '555555',
+    50000,
+    'Every digit is 5',
+    function (n) {
+        return pad(n) === '555555';
+    }
 );
 
 addBadge(
     'allone',
-    'One Nation',
-    80000,
-    'Every digit is 1.',
-    n =>
-        pad(n) ===
-        '111111'
-);
-
-
-/* =========================
-   EXTRA BADGES
-========================= */
-
-addBadge(
-    'allfour',
-    'Quad Squad',
-    80000,
-    'Every digit is 4.',
-    n =>
-        pad(n) ===
-        '444444'
-);
-
-addBadge(
-    'allsix',
-    'Six Pack',
-    80000,
-    'Every digit is 6.',
-    n =>
-        pad(n) ===
-        '666666'
-);
-
-addBadge(
-    'all8',
-    'Infinity',
-    90000,
-    'Every digit is 8.',
-    n =>
-        pad(n) ===
-        '888888'
-);
-
-addBadge(
-    'singleunique',
-    'Lonely Digit',
-    12000,
-    'Exactly one digit appears once.',
-    n => {
-
-        const counts = {};
-
-        digits(n).forEach(
-            digit => {
-                counts[digit] =
-                    (counts[digit] || 0) + 1;
-            }
-        );
-
-        return Object.values(
-            counts
-        ).includes(1);
-
-    }
-);
-
-addBadge(
-    'twozeroes',
-    'Zero Duo',
-    7000,
-    'Contains at least two zeroes.',
-    n =>
-        (
-            pad(n).match(
-                /0/g
-            ) || []
-        ).length >= 2
-);
-
-addBadge(
-    'threefives',
-    'Five Stack',
-    14000,
-    'Contains at least three 5s.',
-    n =>
-        (
-            pad(n).match(
-                /5/g
-            ) || []
-        ).length >= 3
-);
-
-addBadge(
-    'three7s',
-    'Lucky Stack',
-    16000,
-    'Contains at least three 7s.',
-    n =>
-        (
-            pad(n).match(
-                /7/g
-            ) || []
-        ).length >= 3
-);
-
-addBadge(
-    'three9s',
-    'Nine Stack',
-    16000,
-    'Contains at least three 9s.',
-    n =>
-        (
-            pad(n).match(
-                /9/g
-            ) || []
-        ).length >= 3
-);
-
-addBadge(
-    'sum1',
-    'Minimalist',
-    12000,
-    'Digit sum equals 1.',
-    n =>
-        digitSum(n) === 1
-);
-
-addBadge(
-    'sum50',
-    'Overload',
-    15000,
-    'Digit sum equals 50.',
-    n =>
-        digitSum(n) === 50
-);
-
-addBadge(
-    'sum54',
-    'Beyond Maximum',
-    25000,
-    'Digit sum equals 54.',
-    n =>
-        digitSum(n) === 54
-);
-
-addBadge(
-    'ends69',
-    'Nice Ending',
-    10000,
-    'Ends in 69.',
-    n =>
-        pad(n).endsWith(
-            '69'
-        )
-);
-
-addBadge(
-    'starts69',
-    'Nice Beginning',
-    10000,
-    'Starts with 69.',
-    n =>
-        pad(n).startsWith(
-            '69'
-        )
-);
-
-addBadge(
-    'center00',
-    'Void Center',
-    18000,
-    'The center digits are 00.',
-    n => {
-
-        const s =
-            pad(n);
-
-        return (
-            s[2] === '0' &&
-            s[3] === '0'
-        );
-
-    }
-);
-
-addBadge(
-    'center69',
-    'Center Nice',
-    20000,
-    'The center digits are 69.',
-    n => {
-
-        const s =
-            pad(n);
-
-        return (
-            s[2] === '6' &&
-            s[3] === '9'
-        );
-
+    '111111',
+    50000,
+    'Every digit is 1',
+    function (n) {
+        return pad(n) === '111111';
     }
 );
 
 
-/* =========================
-   EXACT PATTERN NUMBERS
-========================= */
+/* ==================================================
+   BADGE ANALYSIS
+================================================== */
 
-const exactBadges = [
+function getBadges(number) {
+    const result = [];
 
-    [
-        69,
-        'Nice Number',
-        10000
-    ],
+    for (const badge of badgeDefinitions) {
+        let matched = false;
 
-    [
-        100,
-        'Century',
-        8000
-    ],
-
-    [
-        420,
-        'Four Twenty',
-        12000
-    ],
-
-    [
-        123,
-        'Tiny Straight',
-        10000
-    ],
-
-    [
-        321,
-        'Reverse Tiny Straight',
-        10000
-    ],
-
-    [
-        123456,
-        'Straight Up',
-        70000
-    ],
-
-    [
-        654321,
-        'Reverse Straight',
-        70000
-    ],
-
-    [
-        111111,
-        'Six Ones',
-        100000
-    ],
-
-    [
-        222222,
-        'Six Twos',
-        80000
-    ],
-
-    [
-        333333,
-        'Six Threes',
-        80000
-    ],
-
-    [
-        420420,
-        'Four Twenty Forever',
-        120000
-    ],
-
-    [
-        696969,
-        'Nice Nice Nice',
-        150000
-    ],
-
-    [
-        777777,
-        'Jackpot Pattern',
-        200000
-    ],
-
-    [
-        999999,
-        'Six Nines',
-        150000
-    ],
-
-    [
-        101010,
-        'Binary Beat',
-        110000
-    ],
-
-    [
-        314159,
-        'Pi Slice',
-        130000
-    ],
-
-    [
-        271828,
-        'Euler Slice',
-        130000
-    ],
-
-    [
-        867530,
-        'Jenny',
-        120000
-    ],
-
-    [
-        123321,
-        'Palindrome Prime',
-        90000
-    ],
-
-    [
-        100001,
-        'Bookend Zero',
-        80000
-    ],
-
-    [
-        808080,
-        'Eight Oh Eight',
-        100000
-    ],
-
-    [
-        696969,
-        'Triple Nice',
-        150000
-    ],
-
-    [
-        777777,
-        'Sacred Seven',
-        200000
-    ]
-
-];
-
-
-exactBadges.forEach(
-    (
-        [
-            value,
-            name,
-            ep
-        ]
-    ) => {
-
-        addBadge(
-            `exact_${value}_${name
-                .replace(
-                    /[^a-z0-9]/gi,
-                    ''
-                )
-                .toLowerCase()}`,
-            name,
-            ep,
-            `Roll exactly ${value}.`,
-            n =>
-                n === value
-        );
-
-    }
-);
-
-
-/* =========================
-   BADGE EVALUATION
-========================= */
-
-function getBadges(
-    number
-) {
-
-    return badgeDefs.filter(
-        badge => {
-
-            try {
-
-                return badge.test(
-                    number
-                );
-
-            } catch {
-
-                return false;
-
-            }
-
+        try {
+            matched = badge.test(number);
+        } catch (error) {
+            console.error(
+                'Badge error:',
+                badge.id,
+                error
+            );
         }
-    );
 
+        if (matched) {
+            result.push(badge);
+        }
+    }
+
+    return result;
 }
 
 
-function analyze(
-    number
-) {
+function analyze(number) {
+    const badges = getBadges(number);
 
-    const badges =
-        getBadges(number);
+    let ep = rollBaseEP();
 
-    let ep =
-        badges.reduce(
-            (
-                total,
-                badge
-            ) =>
-                total + badge.ep,
-            0
-        );
+    for (const badge of badges) {
+        ep += badge.ep;
+    }
 
     /*
-    Small luck bonus.
+    Small independent lucky bonus.
     */
-
-    if (
-        Math.random() < 0.01
-    ) {
-
-        ep += 100;
-
+    if (Math.random() < 0.01) {
+        ep += 50;
     }
 
-    const rarity =
-        getRarityFromEP(ep);
+    const rarity = getRarityFromEP(ep);
 
     return {
-
-        ep,
-
-        rarity,
-
-        badges
-
+        ep: ep,
+        rarity: rarity,
+        badges: badges
     };
-
 }
 
 
-/* =========================
-   RANDOM NUMBER
-========================= */
+/* ==================================================
+   BADGE UNLOCKS
+================================================== */
 
-function randomInt(
-    min,
-    max
-) {
+function processBadges(badges) {
+    let newBadges = [];
 
-    return Math.floor(
-        Math.random() *
-        (
-            max - min + 1
-        )
-    ) + min;
+    for (const badge of badges) {
+        if (!state.foundBadges[badge.id]) {
+            state.foundBadges[badge.id] = {
+                name: badge.name,
+                ep: badge.ep,
+                description: badge.description,
+                unlockedAt: Date.now()
+            };
 
-}
-
-
-/* =========================
-   WAIT
-========================= */
-
-function sleep(
-    milliseconds
-) {
-
-    return new Promise(
-        resolve =>
-            setTimeout(
-                resolve,
-                milliseconds
-            )
-    );
-
-}
-
-
-/* =========================
-   MYTHIC / HOLY SOUND
-========================= */
-
-function playMythicSound() {
-
-    try {
-
-        audioContext ||=
-            new (
-                window.AudioContext ||
-                window.webkitAudioContext
-            )();
-
-        if (
-            audioContext.state ===
-            'suspended'
-        ) {
-
-            audioContext.resume();
-
+            newBadges.push(badge);
         }
-
-        const now =
-            audioContext.currentTime;
-
-        const notes = [
-
-            261.63,
-            329.63,
-            392,
-            523.25,
-            659.25,
-            783.99
-
-        ];
-
-        notes.forEach(
-            (
-                frequency,
-                index
-            ) => {
-
-                const oscillator =
-                    audioContext
-                        .createOscillator();
-
-                const gain =
-                    audioContext
-                        .createGain();
-
-                oscillator.type =
-                    index % 2
-                        ? 'triangle'
-                        : 'sine';
-
-                oscillator.frequency.value =
-                    frequency;
-
-                const start =
-                    now +
-                    index * 0.08;
-
-                gain.gain.setValueAtTime(
-                    0.0001,
-                    start
-                );
-
-                gain.gain.exponentialRampToValueAtTime(
-                    0.16,
-                    start + 0.025
-                );
-
-                gain.gain.exponentialRampToValueAtTime(
-                    0.0001,
-                    start + 0.55
-                );
-
-                oscillator
-                    .connect(gain)
-                    .connect(
-                        audioContext
-                            .destination
-                    );
-
-                oscillator.start(
-                    start
-                );
-
-                oscillator.stop(
-                    start + 0.6
-                );
-
-            }
-        );
-
-    } catch (error) {
-
-        console.warn(
-            'Audio unavailable:',
-            error
-        );
-
     }
 
+    return newBadges;
 }
 
 
-/* =========================
-   TOASTS
-========================= */
+/* ==================================================
+   ROLL
+================================================== */
 
-function showToast(
-    message,
-    type = ''
-) {
+async function roll(fromAuto) {
+    if (rollLocked) {
+        return null;
+    }
 
-    const toast =
-        document.createElement(
-            'div'
+    rollLocked = true;
+
+    const rollButton = $('rollBtn');
+
+    if (rollButton) {
+        rollButton.disabled = true;
+    }
+
+    try {
+        /*
+        Always roll from 0 to 1,000,000.
+        There are no user min/max controls anymore.
+        */
+        const number = randomInt(
+            0,
+            MAX_NUMBER
         );
 
-    toast.className =
-        `toast ${type}`.trim();
+        const result = analyze(number);
 
-    toast.textContent =
-        message;
+        const newBadges =
+            processBadges(result.badges);
 
-    $('toastContainer')
-        .appendChild(
-            toast
-        );
+        state.totalRolls += 1;
+        state.totalEp += result.ep;
 
-    requestAnimationFrame(
-        () => {
-
-            toast.classList.add(
-                'show'
-            );
-
+        if (result.ep > state.bestEp) {
+            state.bestEp = result.ep;
+            state.bestNumber = number;
         }
-    );
 
-    setTimeout(
-        () => {
+        const rarityId = result.rarity.id;
 
-            toast.classList.remove(
-                'show'
+        if (
+            state.rarityCounts[rarityId] === undefined
+        ) {
+            state.rarityCounts[rarityId] = 0;
+        }
+
+        state.rarityCounts[rarityId] += 1;
+
+        if (rarityId === 'EPIC') {
+            state.epics += 1;
+        }
+
+        if (rarityId === 'ANOMALY') {
+            state.anomalies += 1;
+        }
+
+        if (rarityId === 'MYTHIC') {
+            state.mythics += 1;
+        }
+
+        if (rarityId === 'HOLY') {
+            state.holys += 1;
+        }
+
+        const historyEntry = {
+            number: number,
+            ep: result.ep,
+            rarity: rarityId,
+            badges: result.badges.map(function (badge) {
+                return badge.id;
+            }),
+            time: Date.now()
+        };
+
+        state.history.unshift(historyEntry);
+        state.history =
+            state.history.slice(0, MAX_HISTORY);
+
+        const rarePause =
+            rarityId === 'MYTHIC' ||
+            rarityId === 'HOLY';
+
+        if (
+            rarityId === 'ANOMALY' ||
+            rarityId === 'MYTHIC' ||
+            rarityId === 'HOLY'
+        ) {
+            state.rareHistory.unshift(
+                historyEntry
             );
 
-            setTimeout(
-                () =>
-                    toast.remove(),
-                300
+            state.rareHistory =
+                state.rareHistory.slice(
+                    0,
+                    MAX_RARE_HISTORY
+                );
+        }
+
+        renderAll();
+
+        saveLocal();
+        scheduleCloudSave();
+
+        checkMilestones();
+
+        if (newBadges.length > 0) {
+            for (const badge of newBadges) {
+                showToast(
+                    'BADGE UNLOCKED',
+                    badge.name +
+                    '  +' +
+                    formatEP(badge.ep) +
+                    ' EP',
+                    'badge-toast'
+                );
+            }
+        }
+
+        if (rarityId === 'ANOMALY') {
+            showToast(
+                'ANOMALY!',
+                formatNumber(number) +
+                ' • ' +
+                formatEP(result.ep) +
+                ' EP',
+                'anomaly-toast'
             );
 
-        },
-        2600
-    );
+            playRareSound();
+        }
 
+        if (rarityId === 'MYTHIC') {
+            showToast(
+                'MYTHIC!',
+                formatNumber(number) +
+                ' • ' +
+                formatEP(result.ep) +
+                ' EP',
+                'mythic-toast'
+            );
+
+            playRareSound();
+        }
+
+        if (rarityId === 'HOLY') {
+            showToast(
+                'HOLY!',
+                formatNumber(number) +
+                ' • ' +
+                formatEP(result.ep) +
+                ' EP',
+                'holy-toast'
+            );
+
+            playRareSound();
+        }
+
+        /*
+        Rare rolls pause for exactly 3 seconds.
+        */
+        if (rarePause) {
+            document.body.classList.add(
+                rarityId.toLowerCase() + '-flash'
+            );
+
+            await sleep(3000);
+
+            document.body.classList.remove(
+                rarityId.toLowerCase() + '-flash'
+            );
+        }
+
+        return {
+            number: number,
+            ep: result.ep,
+            rarity: result.rarity,
+            badges: result.badges,
+            rarePause: rarePause
+        };
+    } catch (error) {
+        console.error('Roll error:', error);
+
+        showToast(
+            'ERROR',
+            'Something went wrong while rolling.',
+            'error-toast'
+        );
+
+        return null;
+    } finally {
+        rollLocked = false;
+
+        if (rollButton) {
+            rollButton.disabled = false;
+        }
+    }
 }
 
 
-/* =========================
+/* ==================================================
+   AUTO ROLL
+================================================== */
+
+function sleep(ms) {
+    return new Promise(function (resolve) {
+        setTimeout(resolve, ms);
+    });
+}
+
+
+async function autoRollLoop() {
+    while (autoRunning) {
+        const result = await roll(true);
+
+        if (!autoRunning) {
+            break;
+        }
+
+        if (
+            result &&
+            result.rarePause
+        ) {
+            /*
+            roll() already waited 3 seconds.
+            Continue immediately.
+            */
+            continue;
+        }
+
+        const speedElement = $('autoSpeed');
+
+        const delay = speedElement
+            ? Number(speedElement.value) || 500
+            : 500;
+
+        await sleep(delay);
+    }
+}
+
+
+function toggleAutoRoll() {
+    const button = $('autoBtn');
+
+    if (autoRunning) {
+        autoRunning = false;
+
+        if (button) {
+            button.textContent =
+                'AUTO ROLL: OFF';
+
+            button.classList.remove('active');
+        }
+
+        return;
+    }
+
+    autoRunning = true;
+
+    if (button) {
+        button.textContent =
+            'AUTO ROLL: ON';
+
+        button.classList.add('active');
+    }
+
+    autoRollLoop();
+}
+
+
+/* ==================================================
    MILESTONES
-========================= */
+================================================== */
 
-const milestones = [
+const MILESTONES = [
+    {
+        id: 'ep1000',
+        name: 'First Thousand',
+        description: 'Earn 1,000 total EP',
+        reward: 1000,
+        test: function () {
+            return state.totalEp >= 1000;
+        }
+    },
+    {
+        id: 'ep10000',
+        name: 'Getting Started',
+        description: 'Earn 10,000 total EP',
+        reward: 2500,
+        test: function () {
+            return state.totalEp >= 10000;
+        }
+    },
+    {
+        id: 'ep100000',
+        name: 'Six Figures',
+        description: 'Earn 100,000 total EP',
+        reward: 10000,
+        test: function () {
+            return state.totalEp >= 100000;
+        }
+    },
+    {
+        id: 'ep1000000',
+        name: 'Million EP',
+        description: 'Earn 1,000,000 total EP',
+        reward: 50000,
+        test: function () {
+            return state.totalEp >= 1000000;
+        }
+    },
 
-    [
-        'ep1k',
-        '1K EP',
-        1000,
-        state =>
-            state.totalEp
-    ],
+    {
+        id: 'roll100',
+        name: 'Roller',
+        description: 'Roll 100 times',
+        reward: 1000,
+        test: function () {
+            return state.totalRolls >= 100;
+        }
+    },
+    {
+        id: 'roll1000',
+        name: 'Dedicated',
+        description: 'Roll 1,000 times',
+        reward: 5000,
+        test: function () {
+            return state.totalRolls >= 1000;
+        }
+    },
+    {
+        id: 'roll10000',
+        name: 'Machine',
+        description: 'Roll 10,000 times',
+        reward: 25000,
+        test: function () {
+            return state.totalRolls >= 10000;
+        }
+    },
 
-    [
-        'ep10k',
-        '10K EP',
-        10000,
-        state =>
-            state.totalEp
-    ],
-
-    [
-        'ep100k',
-        '100K EP',
-        100000,
-        state =>
-            state.totalEp
-    ],
-
-    [
-        'ep1m',
-        '1M EP',
-        1000000,
-        state =>
-            state.totalEp
-    ],
-
-    [
-        'ep10m',
-        '10M EP',
-        10000000,
-        state =>
-            state.totalEp
-    ],
-
-    [
-        'ep100m',
-        '100M EP',
-        100000000,
-        state =>
-            state.totalEp
-    ],
-
-    [
-        'ep1b',
-        '1B EP',
-        1000000000,
-        state =>
-            state.totalEp
-    ],
-
-    [
-        'roll100',
-        '100 Rolls',
-        100,
-        state =>
-            state.totalRolls
-    ],
-
-    [
-        'roll1k',
-        '1K Rolls',
-        1000,
-        state =>
-            state.totalRolls
-    ],
-
-    [
-        'roll10k',
-        '10K Rolls',
-        10000,
-        state =>
-            state.totalRolls
-    ],
-
-    [
-        'roll100k',
-        '100K Rolls',
-        100000,
-        state =>
-            state.totalRolls
-    ],
-
-    [
-        'roll1m',
-        '1M Rolls',
-        1000000,
-        state =>
-            state.totalRolls
-    ],
-
-    [
-        'badge10',
-        '10 Badges',
-        10,
-        state =>
-            Object.keys(
+    {
+        id: 'badge5',
+        name: 'Collector',
+        description: 'Unlock 5 badges',
+        reward: 2500,
+        test: function () {
+            return Object.keys(
                 state.foundBadges
-            ).length
-    ],
-
-    [
-        'badge50',
-        '50 Badges',
-        50,
-        state =>
-            Object.keys(
+            ).length >= 5;
+        }
+    },
+    {
+        id: 'badge15',
+        name: 'Badge Hunter',
+        description: 'Unlock 15 badges',
+        reward: 7500,
+        test: function () {
+            return Object.keys(
                 state.foundBadges
-            ).length
-    ],
-
-    [
-        'badge100',
-        '100 Badges',
-        100,
-        state =>
-            Object.keys(
+            ).length >= 15;
+        }
+    },
+    {
+        id: 'badge30',
+        name: 'Badge Master',
+        description: 'Unlock 30 badges',
+        reward: 25000,
+        test: function () {
+            return Object.keys(
                 state.foundBadges
-            ).length
-    ],
+            ).length >= 30;
+        }
+    },
+    {
+        id: 'badge50',
+        name: 'Completionist',
+        description: 'Unlock 50 badges',
+        reward: 75000,
+        test: function () {
+            return Object.keys(
+                state.foundBadges
+            ).length >= 50;
+        }
+    },
 
-    [
-        'anomaly10',
-        '10 Anomalies',
-        10,
-        state =>
-            state.anomalies
-    ],
-
-    [
-        'mythic10',
-        '10 Mythics',
-        10,
-        state =>
-            state.mythics
-    ],
-
-    [
-        'holy1',
-        'First Holy',
-        1,
-        state =>
-            state.holys
-    ],
-
-    [
-        'holy5',
-        '5 Holies',
-        5,
-        state =>
-            state.holys
-    ],
-
-    [
-        'holy10',
-        '10 Holies',
-        10,
-        state =>
-            state.holys
-    ]
-
+    {
+        id: 'anomaly10',
+        name: 'Anomaly Hunter',
+        description: 'Find 10 Anomalies',
+        reward: 25000,
+        test: function () {
+            return state.anomalies >= 10;
+        }
+    },
+    {
+        id: 'mythic10',
+        name: 'Mythic Hunter',
+        description: 'Find 10 Mythics',
+        reward: 100000,
+        test: function () {
+            return state.mythics >= 10;
+        }
+    },
+    {
+        id: 'holy1',
+        name: 'Divine',
+        description: 'Find your first Holy',
+        reward: 250000,
+        test: function () {
+            return state.holys >= 1;
+        }
+    },
+    {
+        id: 'holy5',
+        name: 'Blessed',
+        description: 'Find 5 Holys',
+        reward: 500000,
+        test: function () {
+            return state.holys >= 5;
+        }
+    },
+    {
+        id: 'holy10',
+        name: 'Chosen',
+        description: 'Find 10 Holys',
+        reward: 1000000,
+        test: function () {
+            return state.holys >= 10;
+        }
+    }
 ];
 
 
 function checkMilestones() {
+    let changed = false;
 
-    milestones.forEach(
-        milestone => {
-
-            const [
-                id,
-                name,
-                target,
-                getter
-            ] = milestone;
-
-            if (
-                getter(state) >=
-                    target &&
-                !state.milestonesClaimed
-                    .includes(id)
-            ) {
-
-                state.milestonesClaimed
-                    .push(id);
-
-                showToast(
-                    `🏆 Milestone unlocked: ${name}`,
-                    'success'
-                );
-
-            }
-
+    for (const milestone of MILESTONES) {
+        if (
+            state.milestonesClaimed.includes(
+                milestone.id
+            )
+        ) {
+            continue;
         }
-    );
 
+        if (milestone.test()) {
+            state.milestonesClaimed.push(
+                milestone.id
+            );
+
+            changed = true;
+
+            showToast(
+                'MILESTONE',
+                milestone.name +
+                '  +' +
+                formatEP(milestone.reward) +
+                ' EP',
+                'milestone-toast'
+            );
+        }
+    }
+
+    if (changed) {
+        saveLocal();
+        scheduleCloudSave();
+        renderMilestones();
+        renderStats();
+    }
 }
 
 
-/* =========================
-   ROLL
-========================= */
+/* ==================================================
+   RENDER RESULT
+================================================== */
 
-async function roll(
-    isAuto = false
-) {
+function renderResult() {
+    const resultCard = $('resultCard');
 
-    if (rollLocked) {
+    if (!resultCard) {
+        return;
+    }
+
+    if (!state.history.length) {
+        resultCard.className =
+            'result-card';
+
+        resultCard.innerHTML = `
+            <div class="latest-label">LATEST ROLL</div>
+            <div class="latest-number">—</div>
+            <div class="latest-rarity">NO ROLLS YET</div>
+            <div class="latest-ep">0 EP</div>
+        `;
 
         return;
-
     }
 
-    /*
-    MINIMUM AND MAXIMUM ARE
-    PERMANENTLY LOCKED.
-
-    No user input is used here.
-    */
-
-    const min = 0;
-
-    const max =
-        MAX_NUMBER;
-
-    rollLocked = true;
-
-    if ($('rollBtn')) {
-
-        $('rollBtn').disabled =
-            true;
-
-    }
-
-    const number =
-        randomInt(
-            min,
-            max
-        );
-
-    const result =
-        analyze(number);
-
-    state.totalRolls += 1;
-
-    state.totalEp +=
-        result.ep;
-
-    state.bestEp =
-        Math.max(
-            state.bestEp,
-            result.ep
-        );
-
-    /*
-    Best number is based on
-    the EP earned by the roll.
-    */
-
-    if (
-        state.bestNumber === null
-    ) {
-
-        state.bestNumber =
-            number;
-
-    } else {
-
-        const oldBest =
-            analyze(
-                state.bestNumber
-            ).ep;
-
-        if (
-            result.ep >
-            oldBest
-        ) {
-
-            state.bestNumber =
-                number;
-
-        }
-
-    }
-
-    state.rarityCounts[
-        result.rarity
-    ] += 1;
-
-    if (
-        result.rarity ===
-        'MYTHIC'
-    ) {
-
-        state.mythics += 1;
-
-    }
-
-    if (
-        result.rarity ===
-        'HOLY'
-    ) {
-
-        state.holys += 1;
-
-    }
-
-    if (
-        result.rarity ===
-        'ANOMALY'
-    ) {
-
-        state.anomalies += 1;
-
-    }
-
-    if (
-        result.rarity ===
-        'EPIC'
-    ) {
-
-        state.epics += 1;
-
-    }
-
-
-    /* =========================
-       RECORD BADGES
-    ========================= */
-
-    result.badges.forEach(
-        badge => {
-
-            if (
-                !state.foundBadges[
-                    badge.id
-                ]
-            ) {
-
-                state.foundBadges[
-                    badge.id
-                ] = {
-
-                    name:
-                        badge.name,
-
-                    firstNumber:
-                        number,
-
-                    ep:
-                        badge.ep,
-
-                    foundAt:
-                        Date.now()
-
-                };
-
-            }
-
-        }
-    );
-
-
-    /* =========================
-       HISTORY
-    ========================= */
-
-    const record = {
-
-        number,
-
-        ep:
-            result.ep,
-
-        rarity:
-            result.rarity,
-
-        badges:
-            result.badges.map(
-                badge =>
-                    badge.name
-            ),
-
-        time:
-            Date.now()
-
-    };
-
-
-    state.history.unshift(
-        record
-    );
-
-    state.history =
-        state.history.slice(
-            0,
-            MAX_HISTORY
-        );
-
-
-    /* =========================
-       RARE HISTORY
-    ========================= */
-
-    if (
-        result.rarity ===
-            'ANOMALY' ||
-        result.rarity ===
-            'MYTHIC' ||
-        result.rarity ===
-            'HOLY'
-    ) {
-
-        state.rareHistory.unshift(
-            record
-        );
-
-        state.rareHistory =
-            state.rareHistory.slice(
-                0,
-                MAX_RARE_HISTORY
-            );
-
-    }
-
-
-    checkMilestones();
-
-    saveLocal();
-
-    scheduleCloudSave();
-
-    renderAll();
-
-
-    /* =========================
-       MYTHIC / HOLY EVENT
-    ========================= */
-
-    if (
-        result.rarity ===
-            'MYTHIC' ||
-        result.rarity ===
-            'HOLY'
-    ) {
-
-        document.body.classList.add(
-            result.rarity ===
-                'HOLY'
-                ? 'holy'
-                : 'mythic'
-        );
-
-        playMythicSound();
-
-        showToast(
-            result.rarity ===
-                'HOLY'
-                ? `✦ HOLY — ${formatNumber(number)} — ${formatEP(result.ep)} EP`
-                : `🌌 MYTHIC — ${formatNumber(number)} — ${formatEP(result.ep)} EP`,
-            result.rarity ===
-                'HOLY'
-                ? 'holy-toast'
-                : 'mythic-toast'
-        );
-
-        /*
-        AUTO ROLL MUST WAIT
-        THE FULL 3 SECONDS.
-        */
-
-        await sleep(3000);
-
-        document.body.classList.remove(
-            'mythic',
-            'holy'
-        );
-
-    }
-
-
-    rollLocked = false;
-
-    if ($('rollBtn')) {
-
-        $('rollBtn').disabled =
-            false;
-
-    }
-
-    if (!isAuto && $('rollBtn')) {
-
-        $('rollBtn').focus();
-
-    }
-
+    const result = state.history[0];
+
+    resultCard.className =
+        'result-card ' +
+        result.rarity.toLowerCase();
+
+    const badgeText =
+        result.badges.length > 0
+            ? result.badges.length +
+              ' badge' +
+              (result.badges.length === 1 ? '' : 's')
+            : 'No badges';
+
+    resultCard.innerHTML = `
+        <div class="latest-label">LATEST ROLL</div>
+        <div class="latest-number">
+            ${formatNumber(result.number)}
+        </div>
+        <div class="latest-rarity">
+            ${result.rarity}
+        </div>
+        <div class="latest-ep">
+            ${formatEP(result.ep)} EP
+        </div>
+        <div class="latest-badges">
+            ${badgeText}
+        </div>
+    `;
 }
 
 
-/* =========================
-   LOCK MIN/MAX INPUTS
-========================= */
-
-function lockNumberInputs() {
-
-    const minInput =
-        $('minNumber');
-
-    const maxInput =
-        $('maxNumber');
-
-    if (minInput) {
-
-        minInput.value = 0;
-
-        minInput.disabled = true;
-
-        minInput.readOnly = true;
-
-        minInput.setAttribute(
-            'aria-disabled',
-            'true'
-        );
-
-    }
-
-    if (maxInput) {
-
-        maxInput.value =
-            MAX_NUMBER;
-
-        maxInput.disabled = true;
-
-        maxInput.readOnly = true;
-
-        maxInput.setAttribute(
-            'aria-disabled',
-            'true'
-        );
-
-    }
-
-}
-
-
-/* =========================
-   RENDER RESULT
-========================= */
-
-function renderResult(
-    record
-) {
-
-    $('latestNumber').textContent =
-        record
-            ? pad(record.number)
-            : '—';
-
-    $('latestRarity').textContent =
-        record
-            ? record.rarity
-            : 'READY';
-
-    $('latestEP').textContent =
-        record
-            ? `${formatEP(record.ep)} EP`
-            : '0 EP';
-
-    $('latestEffect').textContent =
-        record
-            ? (
-                record.badges.length
-                    ? record.badges.join(
-                        ' • '
-                    )
-                    : 'No special badge'
-            )
-            : 'Roll to begin';
-
-    $('resultCard').className =
-        `result-card ${
-            record
-                ? record.rarity.toLowerCase()
-                : ''
-        }`;
-
-}
-
-
-/* =========================
+/* ==================================================
    RENDER STATS
-========================= */
+================================================== */
 
 function renderStats() {
+    const totalEp = $('totalEp');
+    const totalRolls = $('totalRolls');
+    const bestEp = $('bestEp');
+    const bestNumber = $('bestNumber');
+    const anomalyStat = $('anomalyStat');
+    const mythicStat = $('mythicStat');
+    const holyStat = $('holyStat');
+    const badgesFound = $('badgesFound');
+    const accountName = $('accountName');
 
-    $('totalEp').textContent =
-        formatEP(
-            state.totalEp
-        );
-
-    $('totalRolls').textContent =
-        formatNumber(
-            state.totalRolls
-        );
-
-    $('bestEp').textContent =
-        formatEP(
-            state.bestEp
-        );
-
-    $('bestNumber').textContent =
-        state.bestNumber === null
-            ? '—'
-            : pad(
-                state.bestNumber
-            );
-
-    $('anomalies').textContent =
-        formatNumber(
-            state.anomalies
-        );
-
-    $('mythics').textContent =
-        formatNumber(
-            state.mythics
-        );
-
-    /*
-    Holy counter.
-    Works if the HTML contains
-    #holys.
-    */
-
-    if ($('holys')) {
-
-        $('holys').textContent =
-            formatNumber(
-                state.holys
-            );
-
+    if (totalEp) {
+        totalEp.textContent =
+            formatEP(state.totalEp);
     }
 
-    $('badgesFound').textContent =
-        `${Object.keys(
-            state.foundBadges
-        ).length}/${badgeDefs.length}`;
+    if (totalRolls) {
+        totalRolls.textContent =
+            formatNumber(state.totalRolls);
+    }
 
-    $('accountName').textContent =
-        currentUser
-            ? state.username
-            : 'Guest';
+    if (bestEp) {
+        bestEp.textContent =
+            formatEP(state.bestEp);
+    }
 
+    if (bestNumber) {
+        bestNumber.textContent =
+            state.bestNumber === null
+                ? '—'
+                : formatNumber(state.bestNumber);
+    }
+
+    if (anomalyStat) {
+        anomalyStat.textContent =
+            formatNumber(state.anomalies);
+    }
+
+    if (mythicStat) {
+        mythicStat.textContent =
+            formatNumber(state.mythics);
+    }
+
+    if (holyStat) {
+        holyStat.textContent =
+            formatNumber(state.holys);
+    }
+
+    if (badgesFound) {
+        badgesFound.textContent =
+            formatNumber(
+                Object.keys(
+                    state.foundBadges
+                ).length
+            );
+    }
+
+    if (accountName) {
+        accountName.textContent =
+            state.username;
+    }
 }
 
 
-/* =========================
+/* ==================================================
    RENDER RARITIES
-========================= */
+================================================== */
 
 function renderRarities() {
+    const grid = $('rarityGrid');
 
-    $('rarityGrid').innerHTML =
-        RARITIES.map(
-            rarity => `
-
-                <div class="rarity-item ${rarity.name.toLowerCase()}">
-
-                    <div>
-
-                        <strong>
-                            ${rarity.name}
-                        </strong>
-
-                        <span>
-                            ${rarity.label}
-                        </span>
-
-                    </div>
-
-                    <b>
-                        ${formatNumber(
-                            state.rarityCounts[
-                                rarity.name
-                            ] || 0
-                        )}
-                    </b>
-
-                </div>
-
-            `
-        ).join('');
-
-}
-
-
-/* =========================
-   HTML ESCAPE
-========================= */
-
-function escapeHtml(
-    value
-) {
-
-    return String(value)
-        .replace(
-            /[&<>'"]/g,
-            character => ({
-
-                '&':
-                    '&amp;',
-
-                '<':
-                    '&lt;',
-
-                '>':
-                    '&gt;',
-
-                "'":
-                    '&#39;',
-
-                '"':
-                    '&quot;'
-
-            })[character]
-        );
-
-}
-
-
-/* =========================
-   RENDER BADGES
-========================= */
-
-function renderBadges() {
-
-    const found =
-        state.foundBadges;
-
-    const count =
-        Object.keys(found).length;
-
-    $('badgeCount').textContent =
-        `${count}/${badgeDefs.length}`;
-
-    $('badgeGrid').innerHTML =
-        badgeDefs.map(
-            badge => {
-
-                const unlocked =
-                    Boolean(
-                        found[
-                            badge.id
-                        ]
-                    );
-
-                return `
-
-                    <div
-                        class="badge ${
-                            unlocked
-                                ? 'found'
-                                : 'locked'
-                        }"
-                        title="${escapeHtml(
-                            badge.description
-                        )}"
-                    >
-
-                        <div class="badge-icon">
-                            ${
-                                unlocked
-                                    ? '✦'
-                                    : '?'
-                            }
-                        </div>
-
-                        <div class="badge-info">
-
-                            <strong>
-                                ${escapeHtml(
-                                    badge.name
-                                )}
-                            </strong>
-
-                            <span>
-                                ${
-                                    unlocked
-                                        ? `${formatEP(
-                                            badge.ep
-                                        )} EP`
-                                        : 'LOCKED'
-                                }
-                            </span>
-
-                        </div>
-
-                    </div>
-
-                `;
-
-            }
-        ).join('');
-
-}
-
-
-/* =========================
-   RENDER MILESTONES
-========================= */
-
-function renderMilestones() {
-
-    $('milestoneGrid').innerHTML =
-        milestones.map(
-            milestone => {
-
-                const [
-                    id,
-                    name,
-                    target,
-                    getter
-                ] = milestone;
-
-                const value =
-                    getter(state);
-
-                const unlocked =
-                    state.milestonesClaimed
-                        .includes(id) ||
-                    value >= target;
-
-                const percentage =
-                    Math.min(
-                        100,
-                        target
-                            ? (
-                                value /
-                                target
-                            ) * 100
-                            : 100
-                    );
-
-                return `
-
-                    <div
-                        class="milestone ${
-                            unlocked
-                                ? 'unlocked'
-                                : ''
-                        }"
-                    >
-
-                        <div class="milestone-top">
-
-                            <strong>
-                                ${escapeHtml(
-                                    name
-                                )}
-                            </strong>
-
-                            <span>
-                                ${
-                                    unlocked
-                                        ? 'UNLOCKED'
-                                        : `${formatNumber(
-                                            value
-                                        )} / ${formatNumber(
-                                            target
-                                        )}`
-                                }
-                            </span>
-
-                        </div>
-
-                        <div class="progress">
-
-                            <i
-                                style="width:${percentage}%"
-                            ></i>
-
-                        </div>
-
-                    </div>
-
-                `;
-
-            }
-        ).join('');
-
-}
-
-
-/* =========================
-   RENDER HISTORY
-========================= */
-
-function renderHistory() {
-
-    $('historyList').innerHTML =
-        state.history.length
-
-            ? state.history.map(
-                record => `
-
-                    <div
-                        class="history-row ${
-                            record.rarity.toLowerCase()
-                        }"
-                    >
-
-                        <span class="history-number">
-                            ${pad(
-                                record.number
-                            )}
-                        </span>
-
-                        <span class="history-rarity">
-                            ${record.rarity}
-                        </span>
-
-                        <span class="history-ep">
-                            +${formatEP(
-                                record.ep
-                            )} EP
-                        </span>
-
-                    </div>
-
-                `
-            ).join('')
-
-            : `
-                <div class="empty">
-                    No rolls yet.
-                </div>
-            `;
-
-}
-
-
-/* =========================
-   ACCOUNT RENDER
-========================= */
-
-function renderAccount() {
-
-    $('accountNameInput').value =
-        state.username === 'Guest'
-            ? ''
-            : state.username;
-
-    $('signOutBtn').disabled =
-        !currentUser;
-
-    $('cloudNote').textContent =
-        SUPABASE_CONFIGURED
-
-            ? (
-                currentUser
-                    ? `Signed in as ${currentUser.email}`
-                    : 'Cloud accounts are available.'
-            )
-
-            : 'Cloud accounts are disabled until you add your Supabase project values to script.js.';
-
-}
-
-
-/* =========================
-   RENDER EVERYTHING
-========================= */
-
-function renderAll() {
-
-    renderResult(
-        state.history[0] ||
-        null
-    );
-
-    renderStats();
-
-    renderRarities();
-
-    renderBadges();
-
-    renderMilestones();
-
-    renderHistory();
-
-    renderAccount();
-
-}
-
-
-/* =========================
-   RARE DETAILS
-========================= */
-
-function openDetails(
-    type
-) {
-
-    let title;
-
-    if (
-        type === 'holy'
-    ) {
-
-        title =
-            'Holy Rolls';
-
-    } else if (
-        type === 'mythic'
-    ) {
-
-        title =
-            'Mythic Rolls';
-
-    } else {
-
-        title =
-            'Anomaly Rolls';
-
+    if (!grid) {
+        return;
     }
 
-    const records =
-        state.rareHistory.filter(
-            record => {
+    grid.innerHTML = '';
 
-                if (
-                    type === 'holy'
-                ) {
+    for (const rarity of RARITIES) {
+        const count =
+            state.rarityCounts[rarity.id] || 0;
 
-                    return (
-                        record.rarity ===
-                        'HOLY'
-                    );
+        const item =
+            document.createElement('div');
 
-                }
+        item.className =
+            'rarity-item ' +
+            rarity.id.toLowerCase();
 
-                if (
-                    type === 'mythic'
-                ) {
+        item.innerHTML = `
+            <span>
+                ${rarity.label}
+            </span>
+            <strong>
+                ${formatNumber(count)}
+            </strong>
+        `;
 
-                    return (
-                        record.rarity ===
-                        'MYTHIC'
-                    );
+        grid.appendChild(item);
+    }
+}
 
-                }
 
-                return (
-                    record.rarity ===
-                    'ANOMALY'
-                );
+/* ==================================================
+   RENDER BADGES
+================================================== */
 
-            }
+function renderBadges() {
+    const grid = $('badgeGrid');
+
+    if (!grid) {
+        return;
+    }
+
+    grid.innerHTML = '';
+
+    for (const badge of badgeDefinitions) {
+        const unlocked =
+            Boolean(
+                state.foundBadges[badge.id]
+            );
+
+        const item =
+            document.createElement('div');
+
+        item.className =
+            'badge-item ' +
+            (unlocked ? 'unlocked' : 'locked');
+
+        item.innerHTML = `
+            <div class="badge-name">
+                ${unlocked ? '✓ ' : '🔒 '}
+                ${badge.name}
+            </div>
+
+            <div class="badge-description">
+                ${badge.description}
+            </div>
+
+            <div class="badge-ep">
+                +${formatEP(badge.ep)} EP
+            </div>
+        `;
+
+        grid.appendChild(item);
+    }
+}
+
+
+/* ==================================================
+   RENDER MILESTONES
+================================================== */
+
+function renderMilestones() {
+    const grid = $('milestoneGrid');
+
+    if (!grid) {
+        return;
+    }
+
+    grid.innerHTML = '';
+
+    for (const milestone of MILESTONES) {
+        const claimed =
+            state.milestonesClaimed.includes(
+                milestone.id
+            );
+
+        const item =
+            document.createElement('div');
+
+        item.className =
+            'milestone-item ' +
+            (claimed ? 'claimed' : 'locked');
+
+        item.innerHTML = `
+            <div class="milestone-name">
+                ${claimed ? '✓ ' : '○ '}
+                ${milestone.name}
+            </div>
+
+            <div class="milestone-description">
+                ${milestone.description}
+            </div>
+
+            <div class="milestone-reward">
+                +${formatEP(milestone.reward)} EP
+            </div>
+        `;
+
+        grid.appendChild(item);
+    }
+}
+
+
+/* ==================================================
+   RENDER HISTORY
+================================================== */
+
+function renderHistory() {
+    const list = $('historyList');
+
+    if (!list) {
+        return;
+    }
+
+    list.innerHTML = '';
+
+    if (!state.history.length) {
+        list.innerHTML = `
+            <div class="empty-history">
+                No rolls yet.
+            </div>
+        `;
+
+        return;
+    }
+
+    for (const entry of state.history) {
+        const row =
+            document.createElement('div');
+
+        row.className =
+            'history-row ' +
+            entry.rarity.toLowerCase();
+
+        const date =
+            new Date(entry.time);
+
+        const badgeCount =
+            Array.isArray(entry.badges)
+                ? entry.badges.length
+                : 0;
+
+        row.innerHTML = `
+            <div class="history-number">
+                ${formatNumber(entry.number)}
+            </div>
+
+            <div class="history-rarity">
+                ${entry.rarity}
+            </div>
+
+            <div class="history-ep">
+                ${formatEP(entry.ep)} EP
+            </div>
+
+            <div class="history-badges">
+                ${badgeCount} badge${badgeCount === 1 ? '' : 's'}
+            </div>
+
+            <div class="history-time">
+                ${date.toLocaleTimeString()}
+            </div>
+        `;
+
+        list.appendChild(row);
+    }
+}
+
+
+/* ==================================================
+   DETAILS
+================================================== */
+
+function openDetails(type) {
+    const dialog = $('detailsDialog');
+    const title = $('detailsTitle');
+    const body = $('detailsBody');
+
+    if (!dialog || !title || !body) {
+        return;
+    }
+
+    let heading = '';
+    let entries = [];
+
+    if (type === 'anomaly') {
+        heading = 'ANOMALY HISTORY';
+
+        entries =
+            state.rareHistory.filter(function (entry) {
+                return entry.rarity === 'ANOMALY';
+            });
+    }
+
+    if (type === 'mythic') {
+        heading = 'MYTHIC HISTORY';
+
+        entries =
+            state.rareHistory.filter(function (entry) {
+                return entry.rarity === 'MYTHIC';
+            });
+    }
+
+    if (type === 'holy') {
+        heading = 'HOLY HISTORY';
+
+        entries =
+            state.rareHistory.filter(function (entry) {
+                return entry.rarity === 'HOLY';
+            });
+    }
+
+    title.textContent = heading;
+
+    if (!entries.length) {
+        body.innerHTML = `
+            <div class="empty-history">
+                Nothing found yet.
+            </div>
+        `;
+    } else {
+        body.innerHTML = entries
+            .slice(0, 50)
+            .map(function (entry) {
+                return `
+                    <div class="detail-row">
+                        <strong>
+                            ${formatNumber(entry.number)}
+                        </strong>
+
+                        <span class="${entry.rarity.toLowerCase()}">
+                            ${entry.rarity}
+                        </span>
+
+                        <span>
+                            ${formatEP(entry.ep)} EP
+                        </span>
+                    </div>
+                `;
+            })
+            .join('');
+    }
+
+    if (typeof dialog.showModal === 'function') {
+        dialog.showModal();
+    } else {
+        dialog.setAttribute(
+            'open',
+            ''
+        );
+    }
+}
+
+
+/* ==================================================
+   TOASTS
+================================================== */
+
+function showToast(title, message, className) {
+    const container =
+        $('toastContainer');
+
+    if (!container) {
+        return;
+    }
+
+    const toast =
+        document.createElement('div');
+
+    toast.className =
+        'toast ' +
+        (className || '');
+
+    toast.innerHTML = `
+        <div class="toast-title">
+            ${title}
+        </div>
+
+        <div class="toast-message">
+            ${message}
+        </div>
+    `;
+
+    container.appendChild(toast);
+
+    setTimeout(function () {
+        toast.classList.add('hide');
+
+        setTimeout(function () {
+            toast.remove();
+        }, 300);
+    }, 3500);
+}
+
+
+/* ==================================================
+   AUDIO
+================================================== */
+
+function getAudioContext() {
+    if (!audioContext) {
+        const AudioContextClass =
+            window.AudioContext ||
+            window.webkitAudioContext;
+
+        if (!AudioContextClass) {
+            return null;
+        }
+
+        audioContext =
+            new AudioContextClass();
+    }
+
+    return audioContext;
+}
+
+
+function playRareSound() {
+    try {
+        const ctx =
+            getAudioContext();
+
+        if (!ctx) {
+            return;
+        }
+
+        if (ctx.state === 'suspended') {
+            ctx.resume();
+        }
+
+        const oscillator =
+            ctx.createOscillator();
+
+        const gain =
+            ctx.createGain();
+
+        oscillator.type = 'sine';
+
+        oscillator.frequency.setValueAtTime(
+            440,
+            ctx.currentTime
         );
 
-    $('detailsTitle').textContent =
-        `${title} (${records.length})`;
+        oscillator.frequency.exponentialRampToValueAtTime(
+            880,
+            ctx.currentTime + 0.25
+        );
 
-    $('detailsBody').innerHTML =
-        records.length
+        gain.gain.setValueAtTime(
+            0.0001,
+            ctx.currentTime
+        );
 
-            ? records.map(
-                record => `
+        gain.gain.exponentialRampToValueAtTime(
+            0.15,
+            ctx.currentTime + 0.03
+        );
 
-                    <div class="detail-row">
+        gain.gain.exponentialRampToValueAtTime(
+            0.0001,
+            ctx.currentTime + 0.5
+        );
 
-                        <div>
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
 
-                            <strong>
-                                ${pad(
-                                    record.number
-                                )}
-                            </strong>
-
-                            <span
-                                class="${record.rarity.toLowerCase()}"
-                            >
-                                ${record.rarity}
-                            </span>
-
-                        </div>
-
-                        <b>
-                            ${formatEP(
-                                record.ep
-                            )} EP
-                        </b>
-
-                        <small>
-                            ${
-                                record.badges.length
-                                    ? escapeHtml(
-                                        record.badges.join(
-                                            ' • '
-                                        )
-                                    )
-                                    : 'No badges'
-                            }
-                        </small>
-
-                    </div>
-
-                `
-            ).join('')
-
-            : `
-                <div class="empty">
-                    You have not found any yet.
-                </div>
-            `;
-
-    $('detailsDialog').showModal();
-
+        oscillator.start();
+        oscillator.stop(
+            ctx.currentTime + 0.5
+        );
+    } catch (error) {
+        console.warn(
+            'Audio unavailable:',
+            error
+        );
+    }
 }
 
 
-/* =========================
-   CLEAR HISTORY
-========================= */
-
-function clearHistory() {
-
-    state.history = [];
-
-    saveLocal();
-
-    scheduleCloudSave();
-
-    renderHistory();
-
-}
-
-
-/* =========================
+/* ==================================================
    RESET
-========================= */
+================================================== */
 
 function resetStats() {
-
     const confirmed =
         window.confirm(
-            'Reset all RNG Vault progress on this account/device?'
+            'Are you sure you want to reset all RNG Vault stats?'
         );
 
     if (!confirmed) {
-
         return;
-
     }
 
-    const username =
-        state.username;
-
-    state =
-        cloneDefault();
-
-    state.username =
-        username;
+    state = cloneDefaultState();
 
     saveLocal();
-
     scheduleCloudSave();
 
     renderAll();
 
     showToast(
-        'Progress reset.'
+        'RESET',
+        'All local statistics have been reset.',
+        'reset-toast'
     );
-
 }
 
 
-/* =========================
-   AUTO ROLL
-========================= */
+/* ==================================================
+   CLEAR HISTORY
+================================================== */
 
-function toggleAutoRoll() {
-
-    if (autoTimer) {
-
-        clearInterval(
-            autoTimer
+function clearHistory() {
+    const confirmed =
+        window.confirm(
+            'Clear your roll history? Your stats will remain.'
         );
 
-        autoTimer = null;
-
-        $('autoBtn').textContent =
-            'AUTO ROLL: OFF';
-
-        $('autoBtn')
-            .classList.remove(
-                'active'
-            );
-
+    if (!confirmed) {
         return;
-
     }
 
-    const delay =
-        Number(
-            $('autoSpeed').value
-        ) || 500;
-
-    autoTimer =
-        setInterval(
-            () =>
-                roll(true),
-            delay
-        );
-
-    $('autoBtn').textContent =
-        'AUTO ROLL: ON';
-
-    $('autoBtn')
-        .classList.add(
-            'active'
-        );
-
-}
-
-
-/* =========================
-   SIGN UP
-========================= */
-
-async function signUp() {
-
-    if (!supabaseClient) {
-
-        setAuthStatus(
-            'Supabase is not configured. Guest mode still works.'
-        );
-
-        return;
-
-    }
-
-    const email =
-        $('emailInput')
-            .value
-            .trim();
-
-    const password =
-        $('passwordInput')
-            .value;
-
-    const username =
-        $('accountNameInput')
-            .value
-            .trim() ||
-        'Player';
-
-    if (
-        !email ||
-        password.length < 6
-    ) {
-
-        setAuthStatus(
-            'Enter an email and a password of at least 6 characters.',
-            true
-        );
-
-        return;
-
-    }
-
-    setAuthStatus(
-        'Creating account...'
-    );
-
-    const {
-        data,
-        error
-    } =
-        await supabaseClient
-            .auth
-            .signUp({
-
-                email,
-
-                password,
-
-                options: {
-
-                    data: {
-
-                        username:
-                            username.slice(
-                                0,
-                                24
-                            )
-
-                    },
-
-                    emailRedirectTo:
-                        window.location.origin +
-                        window.location.pathname
-
-                }
-
-            });
-
-    if (error) {
-
-        setAuthStatus(
-            error.message,
-            true
-        );
-
-        return;
-
-    }
-
-    state.username =
-        username.slice(
-            0,
-            24
-        );
-
-    if (data.session) {
-
-        currentUser =
-            data.user;
-
-        await loadCloudForUser(
-            currentUser
-        );
-
-        showToast(
-            'Account created.',
-            'success'
-        );
-
-    } else {
-
-        setAuthStatus(
-            'Account created. Check your email if confirmation is enabled, then sign in.'
-        );
-
-    }
-
-}
-
-
-/* =========================
-   SIGN IN
-========================= */
-
-async function signIn() {
-
-    if (!supabaseClient) {
-
-        setAuthStatus(
-            'Supabase is not configured. Guest mode still works.'
-        );
-
-        return;
-
-    }
-
-    const email =
-        $('emailInput')
-            .value
-            .trim();
-
-    const password =
-        $('passwordInput')
-            .value;
-
-    if (
-        !email ||
-        !password
-    ) {
-
-        setAuthStatus(
-            'Enter your email and password.',
-            true
-        );
-
-        return;
-
-    }
-
-    setAuthStatus(
-        'Signing in...'
-    );
-
-    const {
-        data,
-        error
-    } =
-        await supabaseClient
-            .auth
-            .signInWithPassword({
-
-                email,
-
-                password
-
-            });
-
-    if (error) {
-
-        setAuthStatus(
-            error.message,
-            true
-        );
-
-        return;
-
-    }
-
-    currentUser =
-        data.user;
-
-    await loadCloudForUser(
-        currentUser
-    );
-
-    $('accountDialog')
-        .close();
-
-    showToast(
-        'Signed in. Cloud save loaded.',
-        'success'
-    );
-
-}
-
-
-/* =========================
-   SIGN OUT
-========================= */
-
-async function signOut() {
-
-    if (
-        !supabaseClient ||
-        !currentUser
-    ) {
-
-        return;
-
-    }
-
-    await saveCloud();
-
-    const {
-        error
-    } =
-        await supabaseClient
-            .auth
-            .signOut();
-
-    if (error) {
-
-        setAuthStatus(
-            error.message,
-            true
-        );
-
-        return;
-
-    }
-
-    currentUser = null;
-
-    state =
-        loadLocalState();
-
-    state.username =
-        'Guest';
+    state.history = [];
+    state.rareHistory = [];
+
+    saveLocal();
+    scheduleCloudSave();
 
     renderAll();
 
-    setAuthStatus(
-        'Signed out.'
-    );
-
     showToast(
-        'Signed out.'
+        'HISTORY CLEARED',
+        'Your roll history was cleared.',
+        'reset-toast'
     );
-
 }
 
 
-/* =========================
-   AUTH INITIALIZATION
-========================= */
+/* ==================================================
+   ACCOUNT
+================================================== */
 
-function initAuth() {
+function updateAuthUI(user) {
+    const signInBtn = $('signInBtn');
+    const signUpBtn = $('signUpBtn');
+    const signOutBtn = $('signOutBtn');
+    const guestBtn = $('guestBtn');
+    const status = $('authStatus');
 
     if (!supabaseClient) {
+        if (status) {
+            status.textContent =
+                'Cloud saving is not configured. Guest mode is active.';
+        }
 
-        setAuthStatus(
-            'Guest mode active. Add Supabase settings to enable accounts.'
-        );
+        if (signInBtn) signInBtn.disabled = true;
+        if (signUpBtn) signUpBtn.disabled = true;
+        if (signOutBtn) signOutBtn.disabled = true;
 
         return;
-
     }
 
-    supabaseClient
-        .auth
-        .getSession()
-        .then(
-            async ({ data }) => {
+    if (user) {
+        if (status) {
+            status.textContent =
+                'Signed in as ' +
+                (user.email || 'account');
+        }
 
-                currentUser =
-                    data.session
-                        ? data.session.user
-                        : null;
+        if (signInBtn) signInBtn.disabled = true;
+        if (signUpBtn) signUpBtn.disabled = true;
+        if (signOutBtn) signOutBtn.disabled = false;
 
-                if (currentUser) {
+        if (guestBtn) {
+            guestBtn.textContent =
+                'Continue as Guest';
+        }
+    } else {
+        if (status) {
+            status.textContent =
+                'Not signed in. Local saving is still active.';
+        }
 
-                    await loadCloudForUser(
-                        currentUser
-                    );
+        if (signInBtn) signInBtn.disabled = false;
+        if (signUpBtn) signUpBtn.disabled = false;
+        if (signOutBtn) signOutBtn.disabled = true;
+    }
+}
 
-                }
 
-                renderAll();
+async function initAuth() {
+    if (!supabaseClient) {
+        updateAuthUI(null);
+        return;
+    }
 
-            }
+    try {
+        const result =
+            await supabaseClient.auth.getUser();
+
+        updateAuthUI(
+            result &&
+            result.data
+                ? result.data.user
+                : null
         );
 
-    supabaseClient
-        .auth
-        .onAuthStateChange(
-            (
-                _event,
-                session
-            ) => {
+        if (
+            result &&
+            result.data &&
+            result.data.user
+        ) {
+            await loadCloud();
+        }
 
-                currentUser =
+        supabaseClient.auth.onAuthStateChange(
+            async function (_event, session) {
+                const user =
                     session
                         ? session.user
                         : null;
 
-                renderAll();
+                updateAuthUI(user);
 
+                if (user) {
+                    await loadCloud();
+                }
             }
         );
+    } catch (error) {
+        console.error(
+            'Auth initialization failed:',
+            error
+        );
 
+        updateAuthUI(null);
+    }
 }
 
 
-/* =========================
-   INITIALIZATION
-========================= */
+async function signIn() {
+    if (!supabaseClient) {
+        return;
+    }
 
-function init() {
+    const email =
+        $('emailInput')
+            ? $('emailInput').value.trim()
+            : '';
 
-    $('rollBtn')
-        .addEventListener(
-            'click',
-            () =>
-                roll(false)
+    const password =
+        $('passwordInput')
+            ? $('passwordInput').value
+            : '';
+
+    if (!email || !password) {
+        showToast(
+            'LOGIN',
+            'Enter your email and password.',
+            'error-toast'
         );
 
-    $('autoBtn')
-        .addEventListener(
+        return;
+    }
+
+    try {
+        const result =
+            await supabaseClient.auth.signInWithPassword({
+                email: email,
+                password: password
+            });
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        showToast(
+            'SIGNED IN',
+            'Cloud saving is now active.',
+            'success-toast'
+        );
+
+        const dialog = $('accountDialog');
+
+        if (dialog) {
+            dialog.close();
+        }
+    } catch (error) {
+        console.error(error);
+
+        showToast(
+            'LOGIN FAILED',
+            error.message || 'Could not sign in.',
+            'error-toast'
+        );
+    }
+}
+
+
+async function signUp() {
+    if (!supabaseClient) {
+        return;
+    }
+
+    const email =
+        $('emailInput')
+            ? $('emailInput').value.trim()
+            : '';
+
+    const password =
+        $('passwordInput')
+            ? $('passwordInput').value
+            : '';
+
+    if (!email || !password) {
+        showToast(
+            'SIGN UP',
+            'Enter your email and password.',
+            'error-toast'
+        );
+
+        return;
+    }
+
+    try {
+        const result =
+            await supabaseClient.auth.signUp({
+                email: email,
+                password: password
+            });
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        showToast(
+            'ACCOUNT CREATED',
+            'Check your email if confirmation is required.',
+            'success-toast'
+        );
+    } catch (error) {
+        console.error(error);
+
+        showToast(
+            'SIGN UP FAILED',
+            error.message || 'Could not create account.',
+            'error-toast'
+        );
+    }
+}
+
+
+async function signOut() {
+    if (!supabaseClient) {
+        return;
+    }
+
+    try {
+        const result =
+            await supabaseClient.auth.signOut();
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        showToast(
+            'SIGNED OUT',
+            'You are now using local guest saving.',
+            'success-toast'
+        );
+    } catch (error) {
+        console.error(error);
+
+        showToast(
+            'ERROR',
+            error.message || 'Could not sign out.',
+            'error-toast'
+        );
+    }
+}
+
+
+function continueAsGuest() {
+    const dialog =
+        $('accountDialog');
+
+    if (dialog) {
+        dialog.close();
+    }
+
+    showToast(
+        'GUEST MODE',
+        'Your progress is saved locally.',
+        'success-toast'
+    );
+}
+
+
+/* ==================================================
+   RENDER EVERYTHING
+================================================== */
+
+function renderAll() {
+    renderResult();
+    renderStats();
+    renderRarities();
+    renderBadges();
+    renderMilestones();
+    renderHistory();
+}
+
+
+/* ==================================================
+   INIT
+================================================== */
+
+function init() {
+    const rollBtn = $('rollBtn');
+    const autoBtn = $('autoBtn');
+    const resetBtn = $('resetBtn');
+    const clearHistoryBtn =
+        $('clearHistoryBtn');
+
+    const anomalyStat =
+        $('anomalyStat');
+
+    const mythicStat =
+        $('mythicStat');
+
+    const holyStat =
+        $('holyStat');
+
+    const accountBtn =
+        $('accountBtn');
+
+    const accountDialog =
+        $('accountDialog');
+
+    const accountClose =
+        $('accountClose');
+
+    const detailsDialog =
+        $('detailsDialog');
+
+    const detailsClose =
+        $('detailsClose');
+
+    if (rollBtn) {
+        rollBtn.addEventListener(
+            'click',
+            function () {
+                roll(false);
+            }
+        );
+    }
+
+    if (autoBtn) {
+        autoBtn.addEventListener(
             'click',
             toggleAutoRoll
         );
+    }
 
-    $('resetBtn')
-        .addEventListener(
+    if (resetBtn) {
+        resetBtn.addEventListener(
             'click',
             resetStats
         );
+    }
 
-    $('clearHistoryBtn')
-        .addEventListener(
+    if (clearHistoryBtn) {
+        clearHistoryBtn.addEventListener(
             'click',
             clearHistory
         );
-
-    $('anomalyStat')
-        .addEventListener(
-            'click',
-            () =>
-                openDetails(
-                    'anomaly'
-                )
-        );
-
-    $('mythicStat')
-        .addEventListener(
-            'click',
-            () =>
-                openDetails(
-                    'mythic'
-                )
-        );
-
-    /*
-    Holy stat is optional so the
-    script doesn't break if the
-    current HTML doesn't have it.
-    */
-
-    if ($('holyStat')) {
-
-        $('holyStat')
-            .addEventListener(
-                'click',
-                () =>
-                    openDetails(
-                        'holy'
-                    )
-            );
-
     }
 
-    $('accountBtn')
-        .addEventListener(
+    if (anomalyStat) {
+        anomalyStat.addEventListener(
             'click',
-            () =>
-                $('accountDialog')
-                    .showModal()
+            function () {
+                openDetails('anomaly');
+            }
         );
+    }
 
-    $('closeAccountBtn')
-        .addEventListener(
+    if (mythicStat) {
+        mythicStat.addEventListener(
             'click',
-            () =>
-                $('accountDialog')
-                    .close()
+            function () {
+                openDetails('mythic');
+            }
         );
+    }
 
-    $('closeDetailsBtn')
-        .addEventListener(
+    if (holyStat) {
+        holyStat.addEventListener(
             'click',
-            () =>
-                $('detailsDialog')
-                    .close()
+            function () {
+                openDetails('holy');
+            }
         );
+    }
 
-    $('signInBtn')
-        .addEventListener(
+    if (accountBtn && accountDialog) {
+        accountBtn.addEventListener(
+            'click',
+            function () {
+                accountDialog.showModal();
+            }
+        );
+    }
+
+    if (accountClose && accountDialog) {
+        accountClose.addEventListener(
+            'click',
+            function () {
+                accountDialog.close();
+            }
+        );
+    }
+
+    if (detailsClose && detailsDialog) {
+        detailsClose.addEventListener(
+            'click',
+            function () {
+                detailsDialog.close();
+            }
+        );
+    }
+
+    const signInBtn =
+        $('signInBtn');
+
+    const signUpBtn =
+        $('signUpBtn');
+
+    const signOutBtn =
+        $('signOutBtn');
+
+    const guestBtn =
+        $('guestBtn');
+
+    if (signInBtn) {
+        signInBtn.addEventListener(
             'click',
             signIn
         );
+    }
 
-    $('signUpBtn')
-        .addEventListener(
+    if (signUpBtn) {
+        signUpBtn.addEventListener(
             'click',
             signUp
         );
+    }
 
-    $('signOutBtn')
-        .addEventListener(
+    if (signOutBtn) {
+        signOutBtn.addEventListener(
             'click',
             signOut
         );
+    }
 
-    $('guestBtn')
-        .addEventListener(
+    if (guestBtn) {
+        guestBtn.addEventListener(
             'click',
-            () => {
-
-                currentUser =
-                    null;
-
-                $('accountDialog')
-                    .close();
-
-                showToast(
-                    'Guest mode. Progress stays on this device.'
-                );
-
-            }
+            continueAsGuest
         );
-
-
-    /* =========================
-       LOCK MIN/MAX
-    ========================= */
-
-    lockNumberInputs();
-
-
-    /* =========================
-       SPACE TO ROLL
-    ========================= */
+    }
 
     document.addEventListener(
         'keydown',
-        event => {
-
+        function (event) {
             if (
-                event.code ===
-                    'Space' &&
-                ![
-                    'INPUT',
-                    'TEXTAREA',
-                    'SELECT'
-                ].includes(
-                    document.activeElement
-                        .tagName
-                )
+                event.code === 'Space' &&
+                !event.repeat &&
+                document.activeElement &&
+                document.activeElement.tagName !== 'INPUT' &&
+                document.activeElement.tagName !== 'TEXTAREA' &&
+                document.activeElement.tagName !== 'SELECT'
             ) {
-
                 event.preventDefault();
 
-                roll(false);
-
+                if (!rollLocked) {
+                    roll(false);
+                }
             }
-
         }
     );
-
-
-    /* =========================
-       SAVE BEFORE LEAVING
-    ========================= */
 
     window.addEventListener(
         'beforeunload',
-        () => {
-
+        function () {
             saveLocal();
-
         }
     );
 
-
     renderAll();
-
     initAuth();
-
 }
 
 
-/* =========================
-   START
-========================= */
-
-document.addEventListener(
-    'DOMContentLoaded',
-    init
-);
-```
+if (document.readyState === 'loading') {
+    document.addEventListener(
+        'DOMContentLoaded',
+        init
+    );
+} else {
+    init();
+}
