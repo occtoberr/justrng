@@ -15,16 +15,21 @@
     --yellow: #ffd166;
     --red: #ff637d;
 
+    --holy: #ffffff;
+
     --radius: 18px;
 }
+
 
 * {
     box-sizing: border-box;
 }
 
+
 html {
     scroll-behavior: smooth;
 }
+
 
 body {
     margin: 0;
@@ -42,12 +47,21 @@ body {
         sans-serif;
 
     background:
-        radial-gradient(circle at 50% -10%, rgba(139, 124, 255, 0.18), transparent 35%),
-        radial-gradient(circle at 100% 20%, rgba(183, 108, 255, 0.08), transparent 25%),
+        radial-gradient(
+            circle at 50% -10%,
+            rgba(139, 124, 255, 0.18),
+            transparent 35%
+        ),
+        radial-gradient(
+            circle at 100% 20%,
+            rgba(183, 108, 255, 0.08),
+            transparent 25%
+        ),
         var(--bg);
 
     overflow-x: hidden;
 }
+
 
 body::before {
     content: "";
@@ -58,19 +72,39 @@ body::before {
     pointer-events: none;
 
     background-image:
-        linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+        linear-gradient(
+            rgba(255,255,255,0.018) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            90deg,
+            rgba(255,255,255,0.018) 1px,
+            transparent 1px
+        );
 
     background-size: 40px 40px;
 
-    mask-image: linear-gradient(to bottom, black, transparent 85%);
+    mask-image:
+        linear-gradient(
+            to bottom,
+            black,
+            transparent 85%
+        );
 }
+
 
 body.mythic {
     animation: mythicFlash 3s ease;
 }
 
+
+body.holy {
+    animation: holyFlash 3s ease;
+}
+
+
 @keyframes mythicFlash {
+
     0% {
         background-color: #24104c;
     }
@@ -86,7 +120,34 @@ body.mythic {
     100% {
         background-color: var(--bg);
     }
+
 }
+
+
+@keyframes holyFlash {
+
+    0% {
+        background-color: #302b10;
+    }
+
+    15% {
+        background-color: #6a5a17;
+    }
+
+    35% {
+        background-color: #403716;
+    }
+
+    60% {
+        background-color: #19182c;
+    }
+
+    100% {
+        background-color: var(--bg);
+    }
+
+}
+
 
 button,
 input,
@@ -94,14 +155,19 @@ select {
     font: inherit;
 }
 
+
 button {
     cursor: pointer;
 }
+
 
 button:disabled {
     cursor: not-allowed;
     opacity: 0.55;
 }
+
+
+/* TOPBAR */
 
 .topbar {
     position: sticky;
@@ -116,11 +182,15 @@ button:disabled {
 
     padding: 0 28px;
 
-    background: rgba(7, 8, 18, 0.82);
+    background:
+        rgba(7, 8, 18, 0.82);
+
     backdrop-filter: blur(18px);
 
-    border-bottom: 1px solid var(--border);
+    border-bottom:
+        1px solid var(--border);
 }
+
 
 .brand {
     display: flex;
@@ -132,13 +202,19 @@ button:disabled {
     letter-spacing: -0.4px;
 }
 
+
 .brand-symbol {
     color: var(--accent);
+
     font-size: 24px;
 
     filter:
-        drop-shadow(0 0 10px rgba(139,124,255,0.8));
+        drop-shadow(
+            0 0 10px
+            rgba(139,124,255,0.8)
+        );
 }
+
 
 .account-area {
     display: flex;
@@ -146,19 +222,35 @@ button:disabled {
     gap: 12px;
 
     color: var(--muted);
+
     font-size: 14px;
 }
 
+
+/* MAIN */
+
 main {
-    width: min(1120px, calc(100% - 32px));
+    width: min(
+        1120px,
+        calc(100% - 32px)
+    );
+
     margin: 0 auto;
-    padding: 70px 0 100px;
+
+    padding:
+        70px 0 100px;
 }
+
+
+/* HERO */
 
 .hero {
     text-align: center;
-    padding: 35px 0 45px;
+
+    padding:
+        35px 0 45px;
 }
+
 
 .eyebrow,
 .section-kicker {
@@ -170,10 +262,18 @@ main {
     letter-spacing: 2.5px;
 }
 
-.hero h1 {
-    margin: 12px 0 14px;
 
-    font-size: clamp(42px, 7vw, 76px);
+.hero h1 {
+    margin:
+        12px 0 14px;
+
+    font-size:
+        clamp(
+            42px,
+            7vw,
+            76px
+        );
+
     line-height: 0.95;
 
     letter-spacing: -4px;
@@ -188,13 +288,16 @@ main {
 
     -webkit-background-clip: text;
     background-clip: text;
+
     color: transparent;
 }
+
 
 .hero-text {
     max-width: 570px;
 
-    margin: 0 auto 35px;
+    margin:
+        0 auto 35px;
 
     color: var(--muted);
 
@@ -202,21 +305,29 @@ main {
     line-height: 1.7;
 }
 
+
+/* CONTROLS */
+
 .controls {
     display: flex;
     align-items: end;
     justify-content: center;
+
     flex-wrap: wrap;
+
     gap: 10px;
 }
+
 
 .input-group {
     display: flex;
     flex-direction: column;
+
     gap: 6px;
 
     text-align: left;
 }
+
 
 .input-group label,
 .dialog-inner label {
@@ -226,19 +337,25 @@ main {
     font-weight: 700;
 
     text-transform: uppercase;
+
     letter-spacing: 1px;
 }
+
 
 input,
 select {
     min-width: 150px;
 
-    padding: 13px 14px;
+    padding:
+        13px 14px;
 
     color: var(--text);
 
     background: var(--card);
-    border: 1px solid var(--border);
+
+    border:
+        1px solid var(--border);
+
     border-radius: 12px;
 
     outline: none;
@@ -248,17 +365,67 @@ select {
         box-shadow 0.2s;
 }
 
+
 input:focus,
 select:focus {
-    border-color: rgba(139, 124, 255, 0.75);
+    border-color:
+        rgba(139, 124, 255, 0.75);
 
     box-shadow:
-        0 0 0 3px rgba(139, 124, 255, 0.12);
+        0 0 0 3px
+        rgba(139, 124, 255, 0.12);
 }
+
 
 select {
     min-width: 150px;
 }
+
+
+/* LOCKED MIN/MAX */
+
+#minNumber,
+#maxNumber {
+    cursor: default;
+
+    user-select: none;
+
+    opacity: 0.65;
+
+    background:
+        rgba(255, 255, 255, 0.035);
+
+    border-color:
+        rgba(255, 255, 255, 0.06);
+}
+
+
+#minNumber:focus,
+#maxNumber:focus {
+    border-color:
+        rgba(255, 255, 255, 0.06);
+
+    box-shadow: none;
+}
+
+
+#minNumber::-webkit-inner-spin-button,
+#minNumber::-webkit-outer-spin-button,
+#maxNumber::-webkit-inner-spin-button,
+#maxNumber::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+
+    margin: 0;
+}
+
+
+#minNumber,
+#maxNumber {
+    -moz-appearance: textfield;
+}
+
+
+/* BUTTONS */
 
 .roll-btn,
 .primary-btn,
@@ -267,9 +434,11 @@ select {
 .small-btn,
 .guest-btn {
     border: 0;
+
     border-radius: 12px;
 
-    padding: 13px 17px;
+    padding:
+        13px 17px;
 
     font-weight: 800;
 
@@ -279,14 +448,17 @@ select {
         background 0.15s;
 }
 
+
 .roll-btn:hover,
 .primary-btn:hover,
 .secondary-btn:hover,
 .danger-btn:hover,
 .small-btn:hover,
 .guest-btn:hover {
-    transform: translateY(-1px);
+    transform:
+        translateY(-1px);
 }
+
 
 .roll-btn {
     min-width: 120px;
@@ -301,19 +473,26 @@ select {
         );
 
     box-shadow:
-        0 10px 30px rgba(139, 124, 255, 0.25);
+        0 10px 30px
+        rgba(139,124,255,0.25);
 }
+
 
 .roll-btn:hover {
     filter: brightness(1.12);
 }
 
+
 .secondary-btn {
     color: var(--text);
 
-    background: rgba(255,255,255,0.06);
-    border: 1px solid var(--border);
+    background:
+        rgba(255,255,255,0.06);
+
+    border:
+        1px solid var(--border);
 }
+
 
 .secondary-btn.active {
     color: white;
@@ -325,8 +504,10 @@ select {
             rgba(139,124,255,0.2)
         );
 
-    border-color: rgba(98,230,166,0.35);
+    border-color:
+        rgba(98,230,166,0.35);
 }
+
 
 .primary-btn {
     color: white;
@@ -339,21 +520,32 @@ select {
         );
 }
 
+
 .danger-btn {
     color: #ffb5c0;
 
-    background: rgba(255,99,125,0.08);
-    border: 1px solid rgba(255,99,125,0.15);
+    background:
+        rgba(255,99,125,0.08);
+
+    border:
+        1px solid
+        rgba(255,99,125,0.15);
 }
 
+
 .small-btn {
-    padding: 8px 12px;
+    padding:
+        8px 12px;
 
     color: var(--muted);
 
-    background: rgba(255,255,255,0.05);
-    border: 1px solid var(--border);
+    background:
+        rgba(255,255,255,0.05);
+
+    border:
+        1px solid var(--border);
 }
+
 
 .guest-btn {
     width: 100%;
@@ -361,8 +553,13 @@ select {
     color: var(--muted);
 
     background: transparent;
-    border: 1px solid var(--border);
+
+    border:
+        1px solid var(--border);
 }
+
+
+/* SPACE */
 
 .space-hint {
     margin-top: 18px;
@@ -372,17 +569,26 @@ select {
     font-size: 12px;
 }
 
+
 kbd {
-    padding: 4px 7px;
+    padding:
+        4px 7px;
 
     color: var(--text);
 
-    background: rgba(255,255,255,0.07);
-    border: 1px solid var(--border);
+    background:
+        rgba(255,255,255,0.07);
+
+    border:
+        1px solid var(--border);
+
     border-radius: 6px;
 
     font-size: 11px;
 }
+
+
+/* RESULT */
 
 .result-card {
     position: relative;
@@ -390,7 +596,9 @@ kbd {
     min-height: 290px;
 
     display: flex;
+
     flex-direction: column;
+
     align-items: center;
     justify-content: center;
 
@@ -408,12 +616,16 @@ kbd {
         ),
         var(--card);
 
-    border: 1px solid var(--border);
+    border:
+        1px solid var(--border);
+
     border-radius: 24px;
 
     box-shadow:
-        0 25px 80px rgba(0,0,0,0.25);
+        0 25px 80px
+        rgba(0,0,0,0.25);
 }
+
 
 .result-card::before {
     content: "";
@@ -425,10 +637,12 @@ kbd {
 
     border-radius: 50%;
 
-    background: rgba(139,124,255,0.07);
+    background:
+        rgba(139,124,255,0.07);
 
     filter: blur(60px);
 }
+
 
 .result-label {
     position: relative;
@@ -441,18 +655,28 @@ kbd {
     letter-spacing: 2px;
 }
 
+
 .latest-number {
     position: relative;
 
-    margin: 10px 0 2px;
+    margin:
+        10px 0 2px;
 
-    font-size: clamp(52px, 10vw, 100px);
+    font-size:
+        clamp(
+            52px,
+            10vw,
+            100px
+        );
+
     font-weight: 900;
 
     letter-spacing: -5px;
 
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric:
+        tabular-nums;
 }
+
 
 .latest-rarity {
     position: relative;
@@ -462,6 +686,7 @@ kbd {
 
     letter-spacing: 2px;
 }
+
 
 .latest-ep {
     position: relative;
@@ -473,6 +698,7 @@ kbd {
     font-size: 18px;
     font-weight: 800;
 }
+
 
 .latest-effect {
     position: relative;
@@ -486,36 +712,59 @@ kbd {
     font-size: 12px;
 }
 
+
+/* RESULT RARITY COLORS */
+
 .result-card.trash .latest-rarity {
     color: #777d91;
 }
+
 
 .result-card.common .latest-rarity {
     color: #d7d9e2;
 }
 
+
 .result-card.uncommon .latest-rarity {
     color: #72e1a8;
 }
+
 
 .result-card.rare .latest-rarity {
     color: #67b7ff;
 }
 
+
 .result-card.epic .latest-rarity {
     color: #b57cff;
 }
+
 
 .result-card.anomaly .latest-rarity {
     color: #ff8bd1;
 }
 
+
 .result-card.mythic .latest-rarity {
     color: #ffd166;
 
     text-shadow:
-        0 0 15px rgba(255,209,102,0.7);
+        0 0 15px
+        rgba(255,209,102,0.7);
 }
+
+
+.result-card.holy .latest-rarity {
+    color: #ffffff;
+
+    text-shadow:
+        0 0 8px #ffffff,
+        0 0 20px rgba(255,255,255,0.9),
+        0 0 40px rgba(255,209,102,0.8);
+}
+
+
+/* STATS */
 
 .stats-grid {
     display: grid;
@@ -528,27 +777,35 @@ kbd {
     margin-top: 14px;
 }
 
+
 .stat-card {
     min-height: 125px;
 
     display: flex;
+
     flex-direction: column;
+
     justify-content: center;
 
     padding: 20px;
 
     color: var(--text);
+
     text-align: left;
 
     background: var(--card);
 
-    border: 1px solid var(--border);
+    border:
+        1px solid var(--border);
+
     border-radius: var(--radius);
 }
+
 
 button.stat-card {
     text-align: left;
 }
+
 
 .clickable-stat {
     cursor: pointer;
@@ -559,13 +816,18 @@ button.stat-card {
         background 0.15s;
 }
 
+
 .clickable-stat:hover {
-    transform: translateY(-2px);
+    transform:
+        translateY(-2px);
 
-    border-color: rgba(139,124,255,0.45);
+    border-color:
+        rgba(139,124,255,0.45);
 
-    background: var(--card2);
+    background:
+        var(--card2);
 }
+
 
 .stat-label {
     color: var(--muted);
@@ -574,15 +836,20 @@ button.stat-card {
     font-weight: 800;
 
     text-transform: uppercase;
+
     letter-spacing: 1.3px;
 }
+
 
 .stat-card strong {
     margin-top: 7px;
 
     font-size: 25px;
-    font-variant-numeric: tabular-nums;
+
+    font-variant-numeric:
+        tabular-nums;
 }
+
 
 .stat-card small {
     margin-top: 4px;
@@ -592,29 +859,65 @@ button.stat-card {
     font-size: 10px;
 }
 
+
+/* HOLY STAT */
+
+.holy-stat {
+    border-color:
+        rgba(255,255,255,0.12);
+}
+
+
+.holy-stat strong {
+    color: #ffffff;
+
+    text-shadow:
+        0 0 12px
+        rgba(255,255,255,0.45);
+}
+
+
+.holy-stat small {
+    color: #ffffff;
+}
+
+
+/* SECTIONS */
+
 .section {
     margin-top: 65px;
 }
 
+
 .section-heading {
     display: flex;
+
     align-items: end;
+
     justify-content: space-between;
 
     margin-bottom: 18px;
 }
 
+
 .section-heading h2 {
-    margin: 6px 0 0;
+    margin:
+        6px 0 0;
 
     font-size: 27px;
+
     letter-spacing: -1px;
 }
 
+
 .section-count {
     color: var(--muted);
+
     font-size: 13px;
 }
+
+
+/* RARITIES */
 
 .rarity-grid {
     display: grid;
@@ -625,65 +928,98 @@ button.stat-card {
     gap: 10px;
 }
 
+
 .rarity-item {
     display: flex;
+
     align-items: center;
+
     justify-content: space-between;
 
-    padding: 17px 19px;
+    padding:
+        17px 19px;
 
-    background: var(--card);
+    background:
+        var(--card);
 
-    border: 1px solid var(--border);
+    border:
+        1px solid var(--border);
+
     border-radius: 14px;
 }
 
+
 .rarity-item > div {
     display: flex;
+
     flex-direction: column;
+
     gap: 3px;
 }
+
 
 .rarity-item strong {
     font-size: 13px;
 }
 
+
 .rarity-item span {
     color: var(--muted);
+
     font-size: 11px;
 }
+
 
 .rarity-item b {
     font-size: 18px;
 }
 
+
 .rarity-item.trash strong {
     color: #7f8495;
 }
+
 
 .rarity-item.common strong {
     color: #d6d9e4;
 }
 
+
 .rarity-item.uncommon strong {
     color: #6ee6a6;
 }
+
 
 .rarity-item.rare strong {
     color: #69b7ff;
 }
 
+
 .rarity-item.epic strong {
     color: #b47cff;
 }
+
 
 .rarity-item.anomaly strong {
     color: #ff82ce;
 }
 
+
 .rarity-item.mythic strong {
     color: #ffd166;
 }
+
+
+.rarity-item.holy strong {
+    color: #ffffff;
+
+    text-shadow:
+        0 0 10px
+        rgba(255,255,255,0.5);
+}
+
+
+/* BADGES */
 
 .badge-grid {
     display: grid;
@@ -694,18 +1030,24 @@ button.stat-card {
     gap: 10px;
 }
 
+
 .badge {
     min-height: 105px;
 
     display: flex;
+
     align-items: center;
+
     gap: 13px;
 
     padding: 14px;
 
-    background: var(--card);
+    background:
+        var(--card);
 
-    border: 1px solid var(--border);
+    border:
+        1px solid var(--border);
+
     border-radius: 15px;
 
     transition:
@@ -713,15 +1055,20 @@ button.stat-card {
         border-color 0.15s;
 }
 
-.badge.found:hover {
-    transform: translateY(-2px);
 
-    border-color: rgba(139,124,255,0.4);
+.badge.found:hover {
+    transform:
+        translateY(-2px);
+
+    border-color:
+        rgba(139,124,255,0.4);
 }
+
 
 .badge.locked {
     opacity: 0.42;
 }
+
 
 .badge-icon {
     width: 42px;
@@ -730,28 +1077,35 @@ button.stat-card {
     flex: 0 0 42px;
 
     display: grid;
+
     place-items: center;
 
     border-radius: 12px;
 
     color: var(--accent);
 
-    background: rgba(139,124,255,0.08);
+    background:
+        rgba(139,124,255,0.08);
 
     font-weight: 900;
 }
+
 
 .badge.locked .badge-icon {
     color: var(--muted);
 }
 
+
 .badge-info {
     min-width: 0;
 
     display: flex;
+
     flex-direction: column;
+
     gap: 5px;
 }
+
 
 .badge-info strong {
     overflow: hidden;
@@ -759,14 +1113,19 @@ button.stat-card {
     font-size: 12px;
 
     white-space: nowrap;
+
     text-overflow: ellipsis;
 }
+
 
 .badge-info span {
     color: var(--muted);
 
     font-size: 10px;
 }
+
+
+/* MILESTONES */
 
 .milestone-grid {
     display: grid;
@@ -777,22 +1136,31 @@ button.stat-card {
     gap: 10px;
 }
 
+
 .milestone {
     padding: 17px;
 
-    background: var(--card);
+    background:
+        var(--card);
 
-    border: 1px solid var(--border);
+    border:
+        1px solid var(--border);
+
     border-radius: 15px;
 }
 
+
 .milestone.unlocked {
-    border-color: rgba(98,230,166,0.25);
+    border-color:
+        rgba(98,230,166,0.25);
 }
+
 
 .milestone-top {
     display: flex;
+
     align-items: center;
+
     justify-content: space-between;
 
     gap: 15px;
@@ -800,9 +1168,11 @@ button.stat-card {
     margin-bottom: 11px;
 }
 
+
 .milestone-top strong {
     font-size: 12px;
 }
+
 
 .milestone-top span {
     color: var(--muted);
@@ -812,19 +1182,23 @@ button.stat-card {
     text-align: right;
 }
 
+
 .milestone.unlocked .milestone-top span {
     color: var(--green);
 }
+
 
 .progress {
     height: 6px;
 
     overflow: hidden;
 
-    background: rgba(255,255,255,0.05);
+    background:
+        rgba(255,255,255,0.05);
 
     border-radius: 999px;
 }
+
 
 .progress i {
     display: block;
@@ -841,45 +1215,63 @@ button.stat-card {
     border-radius: inherit;
 }
 
+
 .milestone.unlocked .progress i {
-    background: var(--green);
+    background:
+        var(--green);
 }
+
+
+/* HISTORY */
 
 .history-list {
     overflow: hidden;
 
-    background: var(--card);
+    background:
+        var(--card);
 
-    border: 1px solid var(--border);
+    border:
+        1px solid var(--border);
+
     border-radius: 15px;
 }
+
 
 .history-row {
     display: grid;
 
-    grid-template-columns: 1.5fr 1fr 1fr;
+    grid-template-columns:
+        1.5fr 1fr 1fr;
 
     align-items: center;
 
-    padding: 14px 18px;
+    padding:
+        14px 18px;
 
-    border-bottom: 1px solid var(--border);
+    border-bottom:
+        1px solid var(--border);
 }
+
 
 .history-row:last-child {
     border-bottom: 0;
 }
 
+
 .history-number {
     font-weight: 800;
 
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric:
+        tabular-nums;
 }
+
 
 .history-rarity {
     font-size: 11px;
+
     font-weight: 800;
 }
+
 
 .history-ep {
     color: var(--accent);
@@ -889,33 +1281,52 @@ button.stat-card {
     text-align: right;
 }
 
+
 .history-row.trash .history-rarity {
     color: #777d91;
 }
+
 
 .history-row.common .history-rarity {
     color: #d7d9e2;
 }
 
+
 .history-row.uncommon .history-rarity {
     color: #72e1a8;
 }
+
 
 .history-row.rare .history-rarity {
     color: #67b7ff;
 }
 
+
 .history-row.epic .history-rarity {
     color: #b57cff;
 }
+
 
 .history-row.anomaly .history-rarity {
     color: #ff8bd1;
 }
 
+
 .history-row.mythic .history-rarity {
     color: #ffd166;
 }
+
+
+.history-row.holy .history-rarity {
+    color: #ffffff;
+
+    text-shadow:
+        0 0 8px
+        rgba(255,255,255,0.65);
+}
+
+
+/* EMPTY */
 
 .empty {
     padding: 30px;
@@ -923,11 +1334,19 @@ button.stat-card {
     color: var(--muted);
 
     text-align: center;
+
     font-size: 13px;
 }
 
+
+/* DIALOG */
+
 .dialog {
-    width: min(500px, calc(100% - 30px));
+    width:
+        min(
+            500px,
+            calc(100% - 30px)
+        );
 
     padding: 0;
 
@@ -938,11 +1357,15 @@ button.stat-card {
     border: 0;
 }
 
-.dialog::backdrop {
-    background: rgba(0,0,0,0.75);
 
-    backdrop-filter: blur(8px);
+.dialog::backdrop {
+    background:
+        rgba(0,0,0,0.75);
+
+    backdrop-filter:
+        blur(8px);
 }
+
 
 .dialog-inner {
     position: relative;
@@ -956,37 +1379,49 @@ button.stat-card {
             rgba(12,15,28,0.99)
         );
 
-    border: 1px solid var(--border);
+    border:
+        1px solid var(--border);
+
     border-radius: 22px;
 
     box-shadow:
-        0 30px 100px rgba(0,0,0,0.5);
+        0 30px 100px
+        rgba(0,0,0,0.5);
 }
 
+
 .dialog-inner h2 {
-    margin: 7px 0 10px;
+    margin:
+        7px 0 10px;
 
     font-size: 27px;
 }
 
+
 .dialog-text {
-    margin: 0 0 23px;
+    margin:
+        0 0 23px;
 
     color: var(--muted);
 
     font-size: 13px;
+
     line-height: 1.6;
 }
+
 
 .dialog-inner label {
     display: block;
 
-    margin: 15px 0 7px;
+    margin:
+        15px 0 7px;
 }
+
 
 .dialog-inner input {
     width: 100%;
 }
+
 
 .dialog-close {
     position: absolute;
@@ -998,15 +1433,20 @@ button.stat-card {
     height: 35px;
 
     display: grid;
+
     place-items: center;
 
     color: var(--muted);
 
     background: transparent;
+
     border: 0;
 
     font-size: 26px;
 }
+
+
+/* ACCOUNT */
 
 .account-buttons {
     display: grid;
@@ -1019,32 +1459,42 @@ button.stat-card {
     margin-top: 20px;
 }
 
+
 .auth-status {
     min-height: 18px;
 
-    margin: 15px 0 5px;
+    margin:
+        15px 0 5px;
 
     color: var(--green);
 
     font-size: 12px;
 }
 
+
 .auth-status.error {
     color: var(--red);
 }
 
+
 .cloud-note {
-    margin: 10px 0 0;
+    margin:
+        10px 0 0;
 
     color: var(--muted);
 
     font-size: 10px;
+
     line-height: 1.5;
 }
+
+
+/* DETAILS */
 
 .details-inner {
     width: 100%;
 }
+
 
 .details-body {
     max-height: 55vh;
@@ -1052,36 +1502,49 @@ button.stat-card {
     overflow-y: auto;
 
     display: flex;
+
     flex-direction: column;
+
     gap: 8px;
 
     padding-right: 4px;
 }
 
+
 .detail-row {
     display: grid;
 
-    grid-template-columns: 1fr auto;
+    grid-template-columns:
+        1fr auto;
 
     gap: 6px;
 
     padding: 14px;
 
-    background: rgba(255,255,255,0.035);
+    background:
+        rgba(255,255,255,0.035);
 
-    border: 1px solid var(--border);
+    border:
+        1px solid var(--border);
+
     border-radius: 12px;
 }
 
+
 .detail-row > div {
     display: flex;
+
     align-items: center;
+
     gap: 10px;
 }
 
+
 .detail-row strong {
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric:
+        tabular-nums;
 }
+
 
 .detail-row b {
     color: var(--accent);
@@ -1089,27 +1552,49 @@ button.stat-card {
     font-size: 12px;
 }
 
+
 .detail-row small {
-    grid-column: 1 / -1;
+    grid-column:
+        1 / -1;
 
     color: var(--muted);
 
     font-size: 10px;
 }
 
+
 .detail-row .anomaly {
     color: #ff82ce;
 
     font-size: 10px;
+
     font-weight: 800;
 }
+
 
 .detail-row .mythic {
     color: #ffd166;
 
     font-size: 10px;
+
     font-weight: 800;
 }
+
+
+.detail-row .holy {
+    color: #ffffff;
+
+    font-size: 10px;
+
+    font-weight: 800;
+
+    text-shadow:
+        0 0 8px
+        rgba(255,255,255,0.7);
+}
+
+
+/* TOASTS */
 
 .toast-container {
     position: fixed;
@@ -1120,57 +1605,99 @@ button.stat-card {
     z-index: 100;
 
     display: flex;
+
     flex-direction: column;
+
     gap: 8px;
 
     pointer-events: none;
 }
 
-.toast {
-    max-width: min(390px, calc(100vw - 40px));
 
-    padding: 13px 16px;
+.toast {
+    max-width:
+        min(
+            390px,
+            calc(100vw - 40px)
+        );
+
+    padding:
+        13px 16px;
 
     color: var(--text);
 
-    background: rgba(20,23,40,0.95);
+    background:
+        rgba(20,23,40,0.95);
 
-    border: 1px solid var(--border);
+    border:
+        1px solid var(--border);
+
     border-radius: 12px;
 
     box-shadow:
-        0 15px 50px rgba(0,0,0,0.4);
+        0 15px 50px
+        rgba(0,0,0,0.4);
 
     font-size: 12px;
 
     opacity: 0;
-    transform: translateY(12px);
+
+    transform:
+        translateY(12px);
 
     transition:
         opacity 0.25s,
         transform 0.25s;
 }
 
+
 .toast.show {
     opacity: 1;
-    transform: translateY(0);
+
+    transform:
+        translateY(0);
 }
+
 
 .toast.success {
-    border-color: rgba(98,230,166,0.35);
+    border-color:
+        rgba(98,230,166,0.35);
 }
+
 
 .toast.error {
-    border-color: rgba(255,99,125,0.35);
+    border-color:
+        rgba(255,99,125,0.35);
 }
+
 
 .toast.mythic-toast {
-    border-color: rgba(255,209,102,0.55);
+    border-color:
+        rgba(255,209,102,0.55);
 
     box-shadow:
-        0 0 30px rgba(255,209,102,0.16),
-        0 15px 50px rgba(0,0,0,0.4);
+        0 0 30px
+        rgba(255,209,102,0.16),
+        0 15px 50px
+        rgba(0,0,0,0.4);
 }
+
+
+.toast.holy-toast {
+    border-color:
+        rgba(255,255,255,0.75);
+
+    box-shadow:
+        0 0 35px
+        rgba(255,255,255,0.22),
+        0 0 70px
+        rgba(255,209,102,0.12),
+        0 15px 50px
+        rgba(0,0,0,0.4);
+}
+
+
+/* RESPONSIVE */
 
 @media (max-width: 900px) {
 
@@ -1179,40 +1706,55 @@ button.stat-card {
             repeat(2, minmax(0, 1fr));
     }
 
+
     .badge-grid {
         grid-template-columns:
             repeat(3, minmax(0, 1fr));
     }
+
 }
+
 
 @media (max-width: 650px) {
 
     .topbar {
-        padding: 0 16px;
+        padding:
+            0 16px;
     }
+
 
     .account-area > span {
         display: none;
     }
 
+
     main {
-        width: min(100% - 20px, 1120px);
+        width:
+            min(
+                100% - 20px,
+                1120px
+            );
 
         padding-top: 40px;
     }
+
 
     .hero h1 {
         letter-spacing: -2px;
     }
 
+
     .controls {
         align-items: stretch;
+
         flex-direction: column;
     }
+
 
     .input-group {
         width: 100%;
     }
+
 
     input,
     select,
@@ -1222,35 +1764,44 @@ button.stat-card {
         width: 100%;
     }
 
+
     .stats-grid {
         grid-template-columns:
             repeat(2, minmax(0, 1fr));
     }
+
 
     .rarity-grid,
     .milestone-grid {
         grid-template-columns: 1fr;
     }
 
+
     .badge-grid {
         grid-template-columns:
             repeat(2, minmax(0, 1fr));
     }
 
+
     .history-row {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns:
+            1fr 1fr;
 
         gap: 5px;
     }
+
 
     .history-ep {
         text-align: left;
     }
 
+
     .account-buttons {
         grid-template-columns: 1fr;
     }
+
 }
+
 
 @media (max-width: 420px) {
 
@@ -1258,429 +1809,9 @@ button.stat-card {
         grid-template-columns: 1fr;
     }
 
+
     .badge-grid {
         grid-template-columns: 1fr;
     }
-}<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>RNG Vault</title>
-
-    <link rel="stylesheet" href="style.css">
-
-    <!-- Supabase browser client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-</head>
-
-<body>
-
-<header class="topbar">
-
-    <div class="brand">
-        <span class="brand-icon">✦</span>
-        <span>RNG Vault</span>
-    </div>
-
-    <div class="account-area">
-        <span id="accountStatus">Guest</span>
-        <button id="accountButton">Account</button>
-    </div>
-
-</header>
-
-
-<main class="container">
-
-    <section class="hero">
-
-        <div class="hero-content">
-
-            <p class="eyebrow">RANDOM NUMBER SIMULATOR</p>
-
-            <h1>How lucky are you?</h1>
-
-            <p class="subtitle">
-                Roll numbers, discover badges, earn EP and hunt for
-                ridiculously rare numbers.
-            </p>
-
-        </div>
-
-        <div class="controls">
-
-            <div class="range-controls">
-
-                <label>
-                    Minimum
-
-                    <input
-                        id="minNumber"
-                        type="number"
-                        min="0"
-                        max="1000000"
-                        value="0"
-                    >
-                </label>
-
-                <label>
-                    Maximum
-
-                    <input
-                        id="maxNumber"
-                        type="number"
-                        min="0"
-                        max="1000000"
-                        value="1000000"
-                    >
-                </label>
-
-            </div>
-
-
-            <div class="button-row">
-
-                <button
-                    id="rollButton"
-                    class="roll-button"
-                >
-                    ROLL
-                </button>
-
-                <button
-                    id="resetButton"
-                    class="secondary-button"
-                >
-                    Reset Stats
-                </button>
-
-            </div>
-
-
-            <p class="keyboard-hint">
-                Press <kbd>SPACE</kbd> to roll
-            </p>
-
-        </div>
-
-    </section>
-
-
-    <!-- RESULT -->
-
-    <section class="result-card">
-
-        <div class="result-label">
-            LATEST ROLL
-        </div>
-
-        <div
-            id="resultNumber"
-            class="result-number"
-        >
-            —
-        </div>
-
-        <div
-            id="resultRarity"
-            class="result-rarity"
-        >
-            READY
-        </div>
-
-        <div
-            id="resultEp"
-            class="result-ep"
-        >
-            0 EP
-        </div>
-
-        <div
-            id="resultEffect"
-            class="result-effect"
-        >
-            Roll to begin
-        </div>
-
-    </section>
-
-
-    <!-- STATS -->
-
-    <section class="stats-grid">
-
-        <div class="stat-card">
-            <span>Total EP</span>
-            <strong id="totalEp">0</strong>
-        </div>
-
-        <div class="stat-card">
-            <span>Total Rolls</span>
-            <strong id="totalRolls">0</strong>
-        </div>
-
-        <div class="stat-card">
-            <span>Best EP</span>
-            <strong id="bestEp">0</strong>
-        </div>
-
-        <div class="stat-card">
-            <span>Best Number</span>
-            <strong id="bestNumber">—</strong>
-        </div>
-
-        <div
-            class="stat-card clickable-stat"
-            id="anomalyStat"
-        >
-            <span>Anomalies</span>
-            <strong id="anomalies">0</strong>
-            <small>Click to view</small>
-        </div>
-
-        <div
-            class="stat-card clickable-stat"
-            id="mythicStat"
-        >
-            <span>Mythics</span>
-            <strong id="mythics">0</strong>
-            <small>Click to view</small>
-        </div>
-
-        <div class="stat-card">
-            <span>Badges Found</span>
-            <strong id="badgesFound">0/0</strong>
-        </div>
-
-    </section>
-
-
-    <!-- RARITIES -->
-
-    <section class="section">
-
-        <div class="section-header">
-
-            <div>
-                <p class="eyebrow">COLLECTION</p>
-                <h2>Rarities</h2>
-            </div>
-
-        </div>
-
-        <div
-            id="rarityCollection"
-            class="rarity-grid"
-        ></div>
-
-    </section>
-
-
-    <!-- BADGES -->
-
-    <section class="section">
-
-        <div class="section-header">
-
-            <div>
-                <p class="eyebrow">ACHIEVEMENTS</p>
-                <h2>Badges</h2>
-            </div>
-
-        </div>
-
-        <div
-            id="badgeCollection"
-            class="badge-grid"
-        ></div>
-
-    </section>
-
-
-    <!-- MILESTONES -->
-
-    <section class="section">
-
-        <div class="section-header">
-
-            <div>
-                <p class="eyebrow">PROGRESSION</p>
-                <h2>Milestones</h2>
-            </div>
-
-        </div>
-
-        <div
-            id="milestoneCollection"
-            class="milestone-grid"
-        ></div>
-
-    </section>
-
-
-    <!-- HISTORY -->
-
-    <section class="section">
-
-        <div class="section-header">
-
-            <div>
-                <p class="eyebrow">HISTORY</p>
-                <h2>Recent Rolls</h2>
-            </div>
-
-            <button
-                id="clearHistoryButton"
-                class="secondary-button"
-            >
-                Clear
-            </button>
-
-        </div>
-
-        <div
-            id="history"
-            class="history-list"
-        ></div>
-
-    </section>
-
-</main>
-
-
-<!-- ACCOUNT -->
-
-<dialog id="accountDialog">
-
-    <div class="dialog-content">
-
-        <button
-            id="closeAccount"
-            class="dialog-close"
-        >
-            ×
-        </button>
-
-        <p class="eyebrow">ONLINE ACCOUNT</p>
-
-        <h2 id="accountTitle">
-            Sign in
-        </h2>
-
-        <p
-            id="accountDescription"
-            class="dialog-description"
-        >
-            Create an account to save your progress across devices.
-        </p>
-
-
-        <div id="loggedOutPanel">
-
-            <label>
-                Username
-
-                <input
-                    id="usernameInput"
-                    type="text"
-                    maxlength="20"
-                    placeholder="Your username"
-                >
-            </label>
-
-
-            <label>
-                Email
-
-                <input
-                    id="emailInput"
-                    type="email"
-                    placeholder="you@example.com"
-                    autocomplete="email"
-                >
-            </label>
-
-
-            <label>
-                Password
-
-                <input
-                    id="passwordInput"
-                    type="password"
-                    placeholder="At least 6 characters"
-                    autocomplete="current-password"
-                >
-            </label>
-
-
-            <div class="auth-switch">
-
-                <button
-                    id="switchAuthMode"
-                    class="text-button"
-                >
-                    Need an account? Sign up
-                </button>
-
-            </div>
-
-
-            <div class="dialog-buttons">
-
-                <button
-                    id="authButton"
-                    class="roll-button"
-                >
-                    Sign In
-                </button>
-
-                <button
-                    id="continueGuest"
-                    class="secondary-button"
-                >
-                    Continue as Guest
-                </button>
-
-            </div>
-
-        </div>
-
-
-        <div
-            id="loggedInPanel"
-            class="hidden"
-        >
-
-            <div class="online-status">
-                <span class="online-dot"></span>
-                <span>Online save active</span>
-            </div>
-
-            <p id="loggedInEmail"></p>
-
-            <button
-                id="signOutButton"
-                class="secondary-button full-button"
-            >
-                Sign Out
-            </button>
-
-        </div>
-
-
-        <p
-            id="authMessage"
-            class="auth-message"
-        ></p>
-
-    </div>
-
-</dialog>
-
-
-<script src="script.js"></script>
-
-</body>
-</html>
+}
