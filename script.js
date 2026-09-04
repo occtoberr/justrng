@@ -3,21 +3,12 @@
 /*
 ==================================================
 RNG VAULT
-Version 4.1.0
+Version 4.2.0
+==================================================
+LOCAL SAVE VERSION
+Supabase is disabled for now.
 ==================================================
 */
-
-const SUPABASE_URL = '';
-const SUPABASE_KEY = '';
-
-const SUPABASE_CONFIGURED =
-    /^https:\/\/[^\s]+$/.test(SUPABASE_URL) &&
-    SUPABASE_KEY.length > 20;
-
-const supabaseClient =
-    SUPABASE_CONFIGURED && window.supabase
-        ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-        : null;
 
 
 /* ==================================================
@@ -129,7 +120,6 @@ let state = loadLocalState();
 let rollLocked = false;
 let autoRunning = false;
 let audioContext = null;
-let cloudSaveTimer = null;
 
 
 /* ==================================================
@@ -146,7 +136,9 @@ function $(id) {
 ================================================== */
 
 function cloneDefaultState() {
-    return JSON.parse(JSON.stringify(DEFAULT_STATE));
+    return JSON.parse(
+        JSON.stringify(DEFAULT_STATE)
+    );
 }
 
 
@@ -161,7 +153,10 @@ function normalizeState(data) {
 
     base.version = 4;
 
-    if (typeof base.username !== 'string' || !base.username.trim()) {
+    if (
+        typeof base.username !== 'string' ||
+        !base.username.trim()
+    ) {
         base.username = 'Guest';
     }
 
@@ -173,11 +168,13 @@ function normalizeState(data) {
         base.bestNumber !== null &&
         base.bestNumber !== undefined
     ) {
-        const parsedBest = Number(base.bestNumber);
+        const parsedBest =
+            Number(base.bestNumber);
 
-        base.bestNumber = Number.isFinite(parsedBest)
-            ? parsedBest
-            : null;
+        base.bestNumber =
+            Number.isFinite(parsedBest)
+                ? parsedBest
+                : null;
     } else {
         base.bestNumber = null;
     }
@@ -187,16 +184,24 @@ function normalizeState(data) {
     base.anomalies = Number(base.anomalies) || 0;
     base.epics = Number(base.epics) || 0;
 
-    if (!base.rarityCounts || typeof base.rarityCounts !== 'object') {
+    if (
+        !base.rarityCounts ||
+        typeof base.rarityCounts !== 'object'
+    ) {
         base.rarityCounts = {};
     }
 
     for (const rarity of RARITIES) {
         base.rarityCounts[rarity.id] =
-            Number(base.rarityCounts[rarity.id]) || 0;
+            Number(
+                base.rarityCounts[rarity.id]
+            ) || 0;
     }
 
-    if (!base.foundBadges || typeof base.foundBadges !== 'object') {
+    if (
+        !base.foundBadges ||
+        typeof base.foundBadges !== 'object'
+    ) {
         base.foundBadges = {};
     }
 
@@ -212,8 +217,14 @@ function normalizeState(data) {
         base.milestonesClaimed = [];
     }
 
-    base.history = base.history.slice(0, MAX_HISTORY);
-    base.rareHistory = base.rareHistory.slice(0, MAX_RARE_HISTORY);
+    base.history =
+        base.history.slice(0, MAX_HISTORY);
+
+    base.rareHistory =
+        base.rareHistory.slice(
+            0,
+            MAX_RARE_HISTORY
+        );
 
     return base;
 }
@@ -221,15 +232,22 @@ function normalizeState(data) {
 
 function loadLocalState() {
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const raw =
+            localStorage.getItem(STORAGE_KEY);
 
         if (!raw) {
             return cloneDefaultState();
         }
 
-        return normalizeState(JSON.parse(raw));
+        return normalizeState(
+            JSON.parse(raw)
+        );
     } catch (error) {
-        console.error('Could not load local save:', error);
+        console.error(
+            'Could not load local save:',
+            error
+        );
+
         return cloneDefaultState();
     }
 }
@@ -242,86 +260,10 @@ function saveLocal() {
             JSON.stringify(state)
         );
     } catch (error) {
-        console.error('Could not save local state:', error);
-    }
-}
-
-
-/* ==================================================
-   CLOUD SAVE
-================================================== */
-
-function scheduleCloudSave() {
-    if (!supabaseClient) {
-        return;
-    }
-
-    clearTimeout(cloudSaveTimer);
-
-    cloudSaveTimer = setTimeout(function () {
-        saveCloud();
-    }, 1000);
-}
-
-
-async function saveCloud() {
-    if (!supabaseClient) {
-        return;
-    }
-
-    try {
-        const result = await supabaseClient.auth.getUser();
-
-        if (!result || !result.data || !result.data.user) {
-            return;
-        }
-
-        const user = result.data.user;
-
-        await supabaseClient
-            .from('game_saves')
-            .upsert({
-                user_id: user.id,
-                data: state,
-                updated_at: new Date().toISOString()
-            });
-    } catch (error) {
-        console.error('Cloud save failed:', error);
-    }
-}
-
-
-async function loadCloud() {
-    if (!supabaseClient) {
-        return;
-    }
-
-    try {
-        const result = await supabaseClient.auth.getUser();
-
-        if (!result || !result.data || !result.data.user) {
-            return;
-        }
-
-        const user = result.data.user;
-
-        const response = await supabaseClient
-            .from('game_saves')
-            .select('data')
-            .eq('user_id', user.id)
-            .maybeSingle();
-
-        if (
-            response &&
-            response.data &&
-            response.data.data
-        ) {
-            state = normalizeState(response.data.data);
-            saveLocal();
-            renderAll();
-        }
-    } catch (error) {
-        console.error('Cloud load failed:', error);
+        console.error(
+            'Could not save local state:',
+            error
+        );
     }
 }
 
@@ -332,23 +274,27 @@ async function loadCloud() {
 
 function randomInt(min, max) {
     return Math.floor(
-        Math.random() * (max - min + 1)
+        Math.random() *
+        (max - min + 1)
     ) + min;
 }
 
 
 function formatNumber(number) {
-    return Number(number).toLocaleString('en-US');
+    return Number(number)
+        .toLocaleString('en-US');
 }
 
 
 function formatEP(ep) {
-    return Number(ep).toLocaleString('en-US');
+    return Number(ep)
+        .toLocaleString('en-US');
 }
 
 
 function pad(number) {
-    return String(number).padStart(6, '0');
+    return String(number)
+        .padStart(6, '0');
 }
 
 
@@ -362,16 +308,22 @@ function digits(number) {
 
 
 function digitSum(ds) {
-    return ds.reduce(function (sum, digit) {
-        return sum + digit;
-    }, 0);
+    return ds.reduce(
+        function (sum, digit) {
+            return sum + digit;
+        },
+        0
+    );
 }
 
 
 function isPalindrome(value) {
     const str = pad(value);
 
-    return str === str.split('').reverse().join('');
+    return (
+        str ===
+        str.split('').reverse().join('')
+    );
 }
 
 
@@ -419,13 +371,19 @@ function isPower(number, base) {
 
 function isFibonacci(number) {
     function isSquare(value) {
-        const root = Math.floor(Math.sqrt(value));
+        const root =
+            Math.floor(Math.sqrt(value));
+
         return root * root === value;
     }
 
     return (
-        isSquare(5 * number * number + 4) ||
-        isSquare(5 * number * number - 4)
+        isSquare(
+            5 * number * number + 4
+        ) ||
+        isSquare(
+            5 * number * number - 4
+        )
     );
 }
 
@@ -450,9 +408,12 @@ function productOfDigits(ds) {
         return 0;
     }
 
-    return ds.reduce(function (product, digit) {
-        return product * digit;
-    }, 1);
+    return ds.reduce(
+        function (product, digit) {
+            return product * digit;
+        },
+        1
+    );
 }
 
 
@@ -470,7 +431,9 @@ function getRarityFromEP(ep) {
         }
     }
 
-    return RARITIES[RARITIES.length - 1];
+    return RARITIES[
+        RARITIES.length - 1
+    ];
 }
 
 
@@ -482,8 +445,6 @@ function rollBaseEP() {
     const roll = Math.random();
 
     /*
-    Balanced distribution:
-    
     TRASH      1%
     COMMON    49%
     UNCOMMON  25%
@@ -530,7 +491,13 @@ function rollBaseEP() {
    BADGES
 ================================================== */
 
-function addBadge(id, name, ep, description, test) {
+function addBadge(
+    id,
+    name,
+    ep,
+    description,
+    test
+) {
     badgeDefinitions.push({
         id: id,
         name: name,
@@ -593,6 +560,7 @@ addBadge(
     'Contains a repeated digit',
     function (n) {
         const ds = digits(n);
+
         return new Set(ds).size < 6;
     }
 );
@@ -605,7 +573,11 @@ addBadge(
     function (n) {
         const ds = digits(n);
 
-        for (let i = 1; i < ds.length; i++) {
+        for (
+            let i = 1;
+            i < ds.length;
+            i++
+        ) {
             if (ds[i] < ds[i - 1]) {
                 return false;
             }
@@ -623,7 +595,11 @@ addBadge(
     function (n) {
         const ds = digits(n);
 
-        for (let i = 1; i < ds.length; i++) {
+        for (
+            let i = 1;
+            i < ds.length;
+            i++
+        ) {
             if (ds[i] > ds[i - 1]) {
                 return false;
             }
@@ -641,8 +617,16 @@ addBadge(
     function (n) {
         const ds = digits(n);
 
-        for (let i = 1; i < ds.length; i++) {
-            if (Math.abs(ds[i] - ds[i - 1]) === 1) {
+        for (
+            let i = 1;
+            i < ds.length;
+            i++
+        ) {
+            if (
+                Math.abs(
+                    ds[i] - ds[i - 1]
+                ) === 1
+            ) {
                 return true;
             }
         }
@@ -667,9 +651,13 @@ addBadge(
     500,
     'Divisible by its digit sum',
     function (n) {
-        const sum = digitSum(digits(n));
+        const sum =
+            digitSum(digits(n));
 
-        return sum > 0 && n % sum === 0;
+        return (
+            sum > 0 &&
+            n % sum === 0
+        );
     }
 );
 
@@ -679,7 +667,9 @@ addBadge(
     1000,
     'The number is a perfect square',
     function (n) {
-        const root = Math.floor(Math.sqrt(n));
+        const root =
+            Math.floor(Math.sqrt(n));
+
         return root * root === n;
     }
 );
@@ -738,7 +728,11 @@ addBadge(
     function (n) {
         const ds = digits(n);
 
-        for (let i = 0; i < ds.length - 2; i++) {
+        for (
+            let i = 0;
+            i < ds.length - 2;
+            i++
+        ) {
             if (
                 ds[i] === ds[i + 1] &&
                 ds[i] === ds[i + 2]
@@ -759,7 +753,11 @@ addBadge(
     function (n) {
         const ds = digits(n);
 
-        for (let i = 0; i < ds.length - 3; i++) {
+        for (
+            let i = 0;
+            i < ds.length - 3;
+            i++
+        ) {
             if (
                 ds[i] === ds[i + 1] &&
                 ds[i] === ds[i + 2] &&
@@ -805,7 +803,11 @@ addBadge(
         let evenOdd = true;
         let oddEven = true;
 
-        for (let i = 1; i < ds.length; i++) {
+        for (
+            let i = 1;
+            i < ds.length;
+            i++
+        ) {
             if (
                 ds[i] % 2 ===
                 ds[i - 1] % 2
@@ -827,10 +829,18 @@ addBadge(
     'Digits have equal spacing',
     function (n) {
         const ds = digits(n);
-        const difference = ds[1] - ds[0];
+        const difference =
+            ds[1] - ds[0];
 
-        for (let i = 2; i < ds.length; i++) {
-            if (ds[i] - ds[i - 1] !== difference) {
+        for (
+            let i = 2;
+            i < ds.length;
+            i++
+        ) {
+            if (
+                ds[i] - ds[i - 1] !==
+                difference
+            ) {
                 return false;
             }
         }
@@ -1031,9 +1041,11 @@ addBadge(
     5000,
     'Contains five zeros',
     function (n) {
-        return digits(n).filter(function (d) {
-            return d === 0;
-        }).length >= 5;
+        return digits(n).filter(
+            function (d) {
+                return d === 0;
+            }
+        ).length >= 5;
     }
 );
 
@@ -1043,9 +1055,11 @@ addBadge(
     1000,
     'Every digit is 0–4',
     function (n) {
-        return digits(n).every(function (d) {
-            return d <= 4;
-        });
+        return digits(n).every(
+            function (d) {
+                return d <= 4;
+            }
+        );
     }
 );
 
@@ -1055,9 +1069,11 @@ addBadge(
     1000,
     'Every digit is 5–9',
     function (n) {
-        return digits(n).every(function (d) {
-            return d >= 5;
-        });
+        return digits(n).every(
+            function (d) {
+                return d >= 5;
+            }
+        );
     }
 );
 
@@ -1067,9 +1083,11 @@ addBadge(
     1200,
     'Every digit is even',
     function (n) {
-        return digits(n).every(function (d) {
-            return d % 2 === 0;
-        });
+        return digits(n).every(
+            function (d) {
+                return d % 2 === 0;
+            }
+        );
     }
 );
 
@@ -1079,9 +1097,11 @@ addBadge(
     1200,
     'Every digit is odd',
     function (n) {
-        return digits(n).every(function (d) {
-            return d % 2 === 1;
-        });
+        return digits(n).every(
+            function (d) {
+                return d % 2 === 1;
+            }
+        );
     }
 );
 
@@ -1092,6 +1112,7 @@ addBadge(
     'Every digit is different',
     function (n) {
         const ds = digits(n);
+
         return new Set(ds).size === 6;
     }
 );
@@ -1136,7 +1157,11 @@ addBadge(
     'Middle digit is 7',
     function (n) {
         const ds = digits(n);
-        return ds[2] === 7 || ds[3] === 7;
+
+        return (
+            ds[2] === 7 ||
+            ds[3] === 7
+        );
     }
 );
 
@@ -1147,6 +1172,7 @@ addBadge(
     'First and last digits match',
     function (n) {
         const ds = digits(n);
+
         return ds[0] === ds[5];
     }
 );
@@ -1173,6 +1199,7 @@ addBadge(
     'Two middle digits match',
     function (n) {
         const ds = digits(n);
+
         return ds[2] === ds[3];
     }
 );
@@ -1184,7 +1211,11 @@ addBadge(
     'Middle two digits are 00',
     function (n) {
         const ds = digits(n);
-        return ds[2] === 0 && ds[3] === 0;
+
+        return (
+            ds[2] === 0 &&
+            ds[3] === 0
+        );
     }
 );
 
@@ -1297,7 +1328,11 @@ addBadge(
     50,
     'Digit product is zero',
     function (n) {
-        return productOfDigits(digits(n)) === 0;
+        return (
+            productOfDigits(
+                digits(n)
+            ) === 0
+        );
     }
 );
 
@@ -1307,7 +1342,11 @@ addBadge(
     1500,
     'Digit product equals 1',
     function (n) {
-        return productOfDigits(digits(n)) === 1;
+        return (
+            productOfDigits(
+                digits(n)
+            ) === 1
+        );
     }
 );
 
@@ -1356,8 +1395,15 @@ addBadge(
     function (n) {
         const ds = digits(n);
 
-        for (let i = 1; i < ds.length; i++) {
-            if (ds[i] !== ds[i - 1] + 1) {
+        for (
+            let i = 1;
+            i < ds.length;
+            i++
+        ) {
+            if (
+                ds[i] !==
+                ds[i - 1] + 1
+            ) {
                 return false;
             }
         }
@@ -1374,8 +1420,15 @@ addBadge(
     function (n) {
         const ds = digits(n);
 
-        for (let i = 1; i < ds.length; i++) {
-            if (ds[i] !== ds[i - 1] - 1) {
+        for (
+            let i = 1;
+            i < ds.length;
+            i++
+        ) {
+            if (
+                ds[i] !==
+                ds[i - 1] - 1
+            ) {
                 return false;
             }
         }
@@ -1390,9 +1443,11 @@ addBadge(
     5000,
     'Only contains 0 and 1',
     function (n) {
-        return digits(n).every(function (d) {
-            return d === 0 || d === 1;
-        });
+        return digits(n).every(
+            function (d) {
+                return d === 0 || d === 1;
+            }
+        );
     }
 );
 
@@ -1867,14 +1922,12 @@ function analyze(number) {
         ep += badge.ep;
     }
 
-    /*
-    Small independent lucky bonus.
-    */
     if (Math.random() < 0.01) {
         ep += 50;
     }
 
-    const rarity = getRarityFromEP(ep);
+    const rarity =
+        getRarityFromEP(ep);
 
     return {
         ep: ep,
@@ -1889,7 +1942,7 @@ function analyze(number) {
 ================================================== */
 
 function processBadges(badges) {
-    let newBadges = [];
+    const newBadges = [];
 
     for (const badge of badges) {
         if (!state.foundBadges[badge.id]) {
@@ -1926,10 +1979,6 @@ async function roll(fromAuto) {
     }
 
     try {
-        /*
-        Always roll from 0 to 1,000,000.
-        There are no user min/max controls anymore.
-        */
         const number = randomInt(
             0,
             MAX_NUMBER
@@ -1938,7 +1987,9 @@ async function roll(fromAuto) {
         const result = analyze(number);
 
         const newBadges =
-            processBadges(result.badges);
+            processBadges(
+                result.badges
+            );
 
         state.totalRolls += 1;
         state.totalEp += result.ep;
@@ -1948,10 +1999,12 @@ async function roll(fromAuto) {
             state.bestNumber = number;
         }
 
-        const rarityId = result.rarity.id;
+        const rarityId =
+            result.rarity.id;
 
         if (
-            state.rarityCounts[rarityId] === undefined
+            state.rarityCounts[rarityId] ===
+            undefined
         ) {
             state.rarityCounts[rarityId] = 0;
         }
@@ -1978,15 +2031,23 @@ async function roll(fromAuto) {
             number: number,
             ep: result.ep,
             rarity: rarityId,
-            badges: result.badges.map(function (badge) {
-                return badge.id;
-            }),
+            badges: result.badges.map(
+                function (badge) {
+                    return badge.id;
+                }
+            ),
             time: Date.now()
         };
 
-        state.history.unshift(historyEntry);
+        state.history.unshift(
+            historyEntry
+        );
+
         state.history =
-            state.history.slice(0, MAX_HISTORY);
+            state.history.slice(
+                0,
+                MAX_HISTORY
+            );
 
         const rarePause =
             rarityId === 'MYTHIC' ||
@@ -2011,7 +2072,6 @@ async function roll(fromAuto) {
         renderAll();
 
         saveLocal();
-        scheduleCloudSave();
 
         checkMilestones();
 
@@ -2067,18 +2127,17 @@ async function roll(fromAuto) {
             playRareSound();
         }
 
-        /*
-        Rare rolls pause for exactly 3 seconds.
-        */
         if (rarePause) {
             document.body.classList.add(
-                rarityId.toLowerCase() + '-flash'
+                rarityId.toLowerCase() +
+                '-flash'
             );
 
             await sleep(3000);
 
             document.body.classList.remove(
-                rarityId.toLowerCase() + '-flash'
+                rarityId.toLowerCase() +
+                '-flash'
             );
         }
 
@@ -2090,7 +2149,10 @@ async function roll(fromAuto) {
             rarePause: rarePause
         };
     } catch (error) {
-        console.error('Roll error:', error);
+        console.error(
+            'Roll error:',
+            error
+        );
 
         showToast(
             'ERROR',
@@ -2114,9 +2176,11 @@ async function roll(fromAuto) {
 ================================================== */
 
 function sleep(ms) {
-    return new Promise(function (resolve) {
-        setTimeout(resolve, ms);
-    });
+    return new Promise(
+        function (resolve) {
+            setTimeout(resolve, ms);
+        }
+    );
 }
 
 
@@ -2132,14 +2196,11 @@ async function autoRollLoop() {
             result &&
             result.rarePause
         ) {
-            /*
-            roll() already waited 3 seconds.
-            Continue immediately.
-            */
             continue;
         }
 
-        const speedElement = $('autoSpeed');
+        const speedElement =
+            $('autoSpeed');
 
         const delay = speedElement
             ? Number(speedElement.value) || 500
@@ -2160,7 +2221,9 @@ function toggleAutoRoll() {
             button.textContent =
                 'AUTO ROLL: OFF';
 
-            button.classList.remove('active');
+            button.classList.remove(
+                'active'
+            );
         }
 
         return;
@@ -2172,7 +2235,9 @@ function toggleAutoRoll() {
         button.textContent =
             'AUTO ROLL: ON';
 
-        button.classList.add('active');
+        button.classList.add(
+            'active'
+        );
     }
 
     autoRollLoop();
@@ -2184,40 +2249,148 @@ function toggleAutoRoll() {
 ================================================== */
 
 const MILESTONES = [
+    /* EP */
+
     {
         id: 'ep1000',
         name: 'First Thousand',
         description: 'Earn 1,000 total EP',
         reward: 1000,
+        target: 1000,
+        progress: function () {
+            return state.totalEp;
+        },
         test: function () {
             return state.totalEp >= 1000;
         }
     },
+
+    {
+        id: 'ep5000',
+        name: 'Warming Up',
+        description: 'Earn 5,000 total EP',
+        reward: 1500,
+        target: 5000,
+        progress: function () {
+            return state.totalEp;
+        },
+        test: function () {
+            return state.totalEp >= 5000;
+        }
+    },
+
     {
         id: 'ep10000',
         name: 'Getting Started',
         description: 'Earn 10,000 total EP',
         reward: 2500,
+        target: 10000,
+        progress: function () {
+            return state.totalEp;
+        },
         test: function () {
             return state.totalEp >= 10000;
         }
     },
+
+    {
+        id: 'ep25000',
+        name: 'Quarter Century',
+        description: 'Earn 25,000 total EP',
+        reward: 5000,
+        target: 25000,
+        progress: function () {
+            return state.totalEp;
+        },
+        test: function () {
+            return state.totalEp >= 25000;
+        }
+    },
+
     {
         id: 'ep100000',
         name: 'Six Figures',
         description: 'Earn 100,000 total EP',
         reward: 10000,
+        target: 100000,
+        progress: function () {
+            return state.totalEp;
+        },
         test: function () {
             return state.totalEp >= 100000;
         }
     },
+
+    {
+        id: 'ep250000',
+        name: 'EP Veteran',
+        description: 'Earn 250,000 total EP',
+        reward: 25000,
+        target: 250000,
+        progress: function () {
+            return state.totalEp;
+        },
+        test: function () {
+            return state.totalEp >= 250000;
+        }
+    },
+
     {
         id: 'ep1000000',
         name: 'Million EP',
         description: 'Earn 1,000,000 total EP',
         reward: 50000,
+        target: 1000000,
+        progress: function () {
+            return state.totalEp;
+        },
         test: function () {
             return state.totalEp >= 1000000;
+        }
+    },
+
+    {
+        id: 'ep2500000',
+        name: 'EP Tycoon',
+        description: 'Earn 2,500,000 total EP',
+        reward: 100000,
+        target: 2500000,
+        progress: function () {
+            return state.totalEp;
+        },
+        test: function () {
+            return state.totalEp >= 2500000;
+        }
+    },
+
+    {
+        id: 'ep10000000',
+        name: 'EP Legend',
+        description: 'Earn 10,000,000 total EP',
+        reward: 500000,
+        target: 10000000,
+        progress: function () {
+            return state.totalEp;
+        },
+        test: function () {
+            return state.totalEp >= 10000000;
+        }
+    },
+
+
+    /* ROLLS */
+
+    {
+        id: 'roll10',
+        name: 'Getting Lucky',
+        description: 'Roll 10 times',
+        reward: 100,
+        target: 10,
+        progress: function () {
+            return state.totalRolls;
+        },
+        test: function () {
+            return state.totalRolls >= 10;
         }
     },
 
@@ -2226,26 +2399,131 @@ const MILESTONES = [
         name: 'Roller',
         description: 'Roll 100 times',
         reward: 1000,
+        target: 100,
+        progress: function () {
+            return state.totalRolls;
+        },
         test: function () {
             return state.totalRolls >= 100;
         }
     },
+
+    {
+        id: 'roll500',
+        name: 'Persistent',
+        description: 'Roll 500 times',
+        reward: 2500,
+        target: 500,
+        progress: function () {
+            return state.totalRolls;
+        },
+        test: function () {
+            return state.totalRolls >= 500;
+        }
+    },
+
     {
         id: 'roll1000',
         name: 'Dedicated',
         description: 'Roll 1,000 times',
         reward: 5000,
+        target: 1000,
+        progress: function () {
+            return state.totalRolls;
+        },
         test: function () {
             return state.totalRolls >= 1000;
         }
     },
+
+    {
+        id: 'roll2500',
+        name: 'Grinder',
+        description: 'Roll 2,500 times',
+        reward: 10000,
+        target: 2500,
+        progress: function () {
+            return state.totalRolls;
+        },
+        test: function () {
+            return state.totalRolls >= 2500;
+        }
+    },
+
     {
         id: 'roll10000',
         name: 'Machine',
         description: 'Roll 10,000 times',
         reward: 25000,
+        target: 10000,
+        progress: function () {
+            return state.totalRolls;
+        },
         test: function () {
             return state.totalRolls >= 10000;
+        }
+    },
+
+    {
+        id: 'roll25000',
+        name: 'Unstoppable',
+        description: 'Roll 25,000 times',
+        reward: 50000,
+        target: 25000,
+        progress: function () {
+            return state.totalRolls;
+        },
+        test: function () {
+            return state.totalRolls >= 25000;
+        }
+    },
+
+    {
+        id: 'roll100000',
+        name: 'Roll Addict',
+        description: 'Roll 100,000 times',
+        reward: 150000,
+        target: 100000,
+        progress: function () {
+            return state.totalRolls;
+        },
+        test: function () {
+            return state.totalRolls >= 100000;
+        }
+    },
+
+    {
+        id: 'roll500000',
+        name: 'The Machine',
+        description: 'Roll 500,000 times',
+        reward: 500000,
+        target: 500000,
+        progress: function () {
+            return state.totalRolls;
+        },
+        test: function () {
+            return state.totalRolls >= 500000;
+        }
+    },
+
+
+    /* BADGES */
+
+    {
+        id: 'badge1',
+        name: 'First Discovery',
+        description: 'Unlock 1 badge',
+        reward: 250,
+        target: 1,
+        progress: function () {
+            return Object.keys(
+                state.foundBadges
+            ).length;
+        },
+        test: function () {
+            return Object.keys(
+                state.foundBadges
+            ).length >= 1;
         }
     },
 
@@ -2254,39 +2532,120 @@ const MILESTONES = [
         name: 'Collector',
         description: 'Unlock 5 badges',
         reward: 2500,
+        target: 5,
+        progress: function () {
+            return Object.keys(
+                state.foundBadges
+            ).length;
+        },
         test: function () {
             return Object.keys(
                 state.foundBadges
             ).length >= 5;
         }
     },
+
+    {
+        id: 'badge10',
+        name: 'Explorer',
+        description: 'Unlock 10 badges',
+        reward: 5000,
+        target: 10,
+        progress: function () {
+            return Object.keys(
+                state.foundBadges
+            ).length;
+        },
+        test: function () {
+            return Object.keys(
+                state.foundBadges
+            ).length >= 10;
+        }
+    },
+
     {
         id: 'badge15',
         name: 'Badge Hunter',
         description: 'Unlock 15 badges',
         reward: 7500,
+        target: 15,
+        progress: function () {
+            return Object.keys(
+                state.foundBadges
+            ).length;
+        },
         test: function () {
             return Object.keys(
                 state.foundBadges
             ).length >= 15;
         }
     },
+
+    {
+        id: 'badge25',
+        name: 'Badge Collector',
+        description: 'Unlock 25 badges',
+        reward: 15000,
+        target: 25,
+        progress: function () {
+            return Object.keys(
+                state.foundBadges
+            ).length;
+        },
+        test: function () {
+            return Object.keys(
+                state.foundBadges
+            ).length >= 25;
+        }
+    },
+
     {
         id: 'badge30',
         name: 'Badge Master',
         description: 'Unlock 30 badges',
         reward: 25000,
+        target: 30,
+        progress: function () {
+            return Object.keys(
+                state.foundBadges
+            ).length;
+        },
         test: function () {
             return Object.keys(
                 state.foundBadges
             ).length >= 30;
         }
     },
+
+    {
+        id: 'badge40',
+        name: 'Badge Expert',
+        description: 'Unlock 40 badges',
+        reward: 40000,
+        target: 40,
+        progress: function () {
+            return Object.keys(
+                state.foundBadges
+            ).length;
+        },
+        test: function () {
+            return Object.keys(
+                state.foundBadges
+            ).length >= 40;
+        }
+    },
+
     {
         id: 'badge50',
         name: 'Completionist',
         description: 'Unlock 50 badges',
         reward: 75000,
+        target: 50,
+        progress: function () {
+            return Object.keys(
+                state.foundBadges
+            ).length;
+        },
         test: function () {
             return Object.keys(
                 state.foundBadges
@@ -2295,48 +2654,330 @@ const MILESTONES = [
     },
 
     {
+        id: 'badge60',
+        name: 'Badge Elite',
+        description: 'Unlock 60 badges',
+        reward: 100000,
+        target: 60,
+        progress: function () {
+            return Object.keys(
+                state.foundBadges
+            ).length;
+        },
+        test: function () {
+            return Object.keys(
+                state.foundBadges
+            ).length >= 60;
+        }
+    },
+
+    {
+        id: 'badge75',
+        name: 'Badge Overlord',
+        description: 'Unlock 75 badges',
+        reward: 200000,
+        target: 75,
+        progress: function () {
+            return Object.keys(
+                state.foundBadges
+            ).length;
+        },
+        test: function () {
+            return Object.keys(
+                state.foundBadges
+            ).length >= 75;
+        }
+    },
+
+
+    /* ANOMALIES */
+
+    {
+        id: 'anomaly1',
+        name: 'Something Strange',
+        description: 'Find 1 Anomaly',
+        reward: 10000,
+        target: 1,
+        progress: function () {
+            return state.anomalies;
+        },
+        test: function () {
+            return state.anomalies >= 1;
+        }
+    },
+
+    {
+        id: 'anomaly5',
+        name: 'Anomaly Seeker',
+        description: 'Find 5 Anomalies',
+        reward: 25000,
+        target: 5,
+        progress: function () {
+            return state.anomalies;
+        },
+        test: function () {
+            return state.anomalies >= 5;
+        }
+    },
+
+    {
         id: 'anomaly10',
         name: 'Anomaly Hunter',
         description: 'Find 10 Anomalies',
-        reward: 25000,
+        reward: 50000,
+        target: 10,
+        progress: function () {
+            return state.anomalies;
+        },
         test: function () {
             return state.anomalies >= 10;
         }
     },
+
+    {
+        id: 'anomaly25',
+        name: 'Anomaly Master',
+        description: 'Find 25 Anomalies',
+        reward: 200000,
+        target: 25,
+        progress: function () {
+            return state.anomalies;
+        },
+        test: function () {
+            return state.anomalies >= 25;
+        }
+    },
+
+    {
+        id: 'anomaly50',
+        name: 'Anomaly Legend',
+        description: 'Find 50 Anomalies',
+        reward: 500000,
+        target: 50,
+        progress: function () {
+            return state.anomalies;
+        },
+        test: function () {
+            return state.anomalies >= 50;
+        }
+    },
+
+
+    /* MYTHICS */
+
+    {
+        id: 'mythic1',
+        name: 'Mythic Discovery',
+        description: 'Find 1 Mythic',
+        reward: 50000,
+        target: 1,
+        progress: function () {
+            return state.mythics;
+        },
+        test: function () {
+            return state.mythics >= 1;
+        }
+    },
+
+    {
+        id: 'mythic5',
+        name: 'Mythic Seeker',
+        description: 'Find 5 Mythics',
+        reward: 150000,
+        target: 5,
+        progress: function () {
+            return state.mythics;
+        },
+        test: function () {
+            return state.mythics >= 5;
+        }
+    },
+
     {
         id: 'mythic10',
         name: 'Mythic Hunter',
         description: 'Find 10 Mythics',
-        reward: 100000,
+        reward: 300000,
+        target: 10,
+        progress: function () {
+            return state.mythics;
+        },
         test: function () {
             return state.mythics >= 10;
         }
     },
+
+    {
+        id: 'mythic25',
+        name: 'Mythic Master',
+        description: 'Find 25 Mythics',
+        reward: 1000000,
+        target: 25,
+        progress: function () {
+            return state.mythics;
+        },
+        test: function () {
+            return state.mythics >= 25;
+        }
+    },
+
+
+    /* HOLYS */
+
     {
         id: 'holy1',
         name: 'Divine',
         description: 'Find your first Holy',
         reward: 250000,
+        target: 1,
+        progress: function () {
+            return state.holys;
+        },
         test: function () {
             return state.holys >= 1;
         }
     },
+
     {
         id: 'holy5',
         name: 'Blessed',
         description: 'Find 5 Holys',
         reward: 500000,
+        target: 5,
+        progress: function () {
+            return state.holys;
+        },
         test: function () {
             return state.holys >= 5;
         }
     },
+
     {
         id: 'holy10',
         name: 'Chosen',
         description: 'Find 10 Holys',
         reward: 1000000,
+        target: 10,
+        progress: function () {
+            return state.holys;
+        },
         test: function () {
             return state.holys >= 10;
+        }
+    },
+
+    {
+        id: 'holy25',
+        name: 'Divine Legend',
+        description: 'Find 25 Holys',
+        reward: 5000000,
+        target: 25,
+        progress: function () {
+            return state.holys;
+        },
+        test: function () {
+            return state.holys >= 25;
+        }
+    },
+
+
+    /* BEST ROLL */
+
+    {
+        id: 'best10k',
+        name: 'Big Roll',
+        description: 'Get a single roll worth 10,000+ EP',
+        reward: 5000,
+        target: 10000,
+        progress: function () {
+            return state.bestEp;
+        },
+        test: function () {
+            return state.bestEp >= 10000;
+        }
+    },
+
+    {
+        id: 'best50k',
+        name: 'Huge Roll',
+        description: 'Get a single roll worth 50,000+ EP',
+        reward: 25000,
+        target: 50000,
+        progress: function () {
+            return state.bestEp;
+        },
+        test: function () {
+            return state.bestEp >= 50000;
+        }
+    },
+
+    {
+        id: 'best100k',
+        name: 'Monster Roll',
+        description: 'Get a single roll worth 100,000+ EP',
+        reward: 100000,
+        target: 100000,
+        progress: function () {
+            return state.bestEp;
+        },
+        test: function () {
+            return state.bestEp >= 100000;
+        }
+    },
+
+    {
+        id: 'best250k',
+        name: 'Massive Roll',
+        description: 'Get a single roll worth 250,000+ EP',
+        reward: 250000,
+        target: 250000,
+        progress: function () {
+            return state.bestEp;
+        },
+        test: function () {
+            return state.bestEp >= 250000;
+        }
+    },
+
+    {
+        id: 'best500k',
+        name: 'Insane Roll',
+        description: 'Get a single roll worth 500,000+ EP',
+        reward: 500000,
+        target: 500000,
+        progress: function () {
+            return state.bestEp;
+        },
+        test: function () {
+            return state.bestEp >= 500000;
+        }
+    },
+
+    {
+        id: 'best750k',
+        name: 'Almost Divine',
+        description: 'Get a single roll worth 750,000+ EP',
+        reward: 750000,
+        target: 750000,
+        progress: function () {
+            return state.bestEp;
+        },
+        test: function () {
+            return state.bestEp >= 750000;
+        }
+    },
+
+    {
+        id: 'best1m',
+        name: 'One Million',
+        description: 'Get a single roll worth 1,000,000+ EP',
+        reward: 1000000,
+        target: 1000000,
+        progress: function () {
+            return state.bestEp;
+        },
+        test: function () {
+            return state.bestEp >= 1000000;
         }
     }
 ];
@@ -2374,7 +3015,6 @@ function checkMilestones() {
 
     if (changed) {
         saveLocal();
-        scheduleCloudSave();
         renderMilestones();
         renderStats();
     }
@@ -2386,7 +3026,8 @@ function checkMilestones() {
 ================================================== */
 
 function renderResult() {
-    const resultCard = $('resultCard');
+    const resultCard =
+        $('resultCard');
 
     if (!resultCard) {
         return;
@@ -2406,7 +3047,8 @@ function renderResult() {
         return;
     }
 
-    const result = state.history[0];
+    const result =
+        state.history[0];
 
     resultCard.className =
         'result-card ' +
@@ -2416,20 +3058,28 @@ function renderResult() {
         result.badges.length > 0
             ? result.badges.length +
               ' badge' +
-              (result.badges.length === 1 ? '' : 's')
+              (
+                  result.badges.length === 1
+                      ? ''
+                      : 's'
+              )
             : 'No badges';
 
     resultCard.innerHTML = `
         <div class="latest-label">LATEST ROLL</div>
+
         <div class="latest-number">
             ${formatNumber(result.number)}
         </div>
+
         <div class="latest-rarity">
             ${result.rarity}
         </div>
+
         <div class="latest-ep">
             ${formatEP(result.ep)} EP
         </div>
+
         <div class="latest-badges">
             ${badgeText}
         </div>
@@ -2471,22 +3121,42 @@ function renderStats() {
         bestNumber.textContent =
             state.bestNumber === null
                 ? '—'
-                : formatNumber(state.bestNumber);
+                : formatNumber(
+                    state.bestNumber
+                );
     }
 
+    /*
+    Keep the rarity label AND the number.
+    Previously textContent replaced the whole
+    card and removed ANOMALY / MYTHIC / HOLY.
+    */
+
     if (anomalyStat) {
-        anomalyStat.textContent =
-            formatNumber(state.anomalies);
+        anomalyStat.innerHTML = `
+            <span>ANOMALY</span>
+            <strong>
+                ${formatNumber(state.anomalies)}
+            </strong>
+        `;
     }
 
     if (mythicStat) {
-        mythicStat.textContent =
-            formatNumber(state.mythics);
+        mythicStat.innerHTML = `
+            <span>MYTHIC</span>
+            <strong>
+                ${formatNumber(state.mythics)}
+            </strong>
+        `;
     }
 
     if (holyStat) {
-        holyStat.textContent =
-            formatNumber(state.holys);
+        holyStat.innerHTML = `
+            <span>HOLY</span>
+            <strong>
+                ${formatNumber(state.holys)}
+            </strong>
+        `;
     }
 
     if (badgesFound) {
@@ -2510,7 +3180,8 @@ function renderStats() {
 ================================================== */
 
 function renderRarities() {
-    const grid = $('rarityGrid');
+    const grid =
+        $('rarityGrid');
 
     if (!grid) {
         return;
@@ -2520,7 +3191,9 @@ function renderRarities() {
 
     for (const rarity of RARITIES) {
         const count =
-            state.rarityCounts[rarity.id] || 0;
+            state.rarityCounts[
+                rarity.id
+            ] || 0;
 
         const item =
             document.createElement('div');
@@ -2533,6 +3206,7 @@ function renderRarities() {
             <span>
                 ${rarity.label}
             </span>
+
             <strong>
                 ${formatNumber(count)}
             </strong>
@@ -2548,7 +3222,8 @@ function renderRarities() {
 ================================================== */
 
 function renderBadges() {
-    const grid = $('badgeGrid');
+    const grid =
+        $('badgeGrid');
 
     if (!grid) {
         return;
@@ -2559,7 +3234,9 @@ function renderBadges() {
     for (const badge of badgeDefinitions) {
         const unlocked =
             Boolean(
-                state.foundBadges[badge.id]
+                state.foundBadges[
+                    badge.id
+                ]
             );
 
         const item =
@@ -2567,7 +3244,11 @@ function renderBadges() {
 
         item.className =
             'badge-item ' +
-            (unlocked ? 'unlocked' : 'locked');
+            (
+                unlocked
+                    ? 'unlocked'
+                    : 'locked'
+            );
 
         item.innerHTML = `
             <div class="badge-name">
@@ -2594,7 +3275,8 @@ function renderBadges() {
 ================================================== */
 
 function renderMilestones() {
-    const grid = $('milestoneGrid');
+    const grid =
+        $('milestoneGrid');
 
     if (!grid) {
         return;
@@ -2613,7 +3295,63 @@ function renderMilestones() {
 
         item.className =
             'milestone-item ' +
-            (claimed ? 'claimed' : 'locked');
+            (
+                claimed
+                    ? 'claimed'
+                    : 'locked'
+            );
+
+        let current = 0;
+
+        const target =
+            Number(milestone.target) || 1;
+
+        if (
+            typeof milestone.progress ===
+            'function'
+        ) {
+            try {
+                current =
+                    Number(
+                        milestone.progress()
+                    ) || 0;
+            } catch (error) {
+                console.error(
+                    'Milestone progress error:',
+                    milestone.id,
+                    error
+                );
+            }
+        }
+
+        current =
+            Math.max(0, current);
+
+        const percent =
+            claimed
+                ? 100
+                : Math.min(
+                    100,
+                    Math.max(
+                        0,
+                        (
+                            current /
+                            target
+                        ) * 100
+                    )
+                );
+
+        const progressText =
+            claimed
+                ? 'COMPLETED'
+                : formatNumber(
+                    Math.min(
+                        current,
+                        target
+                    )
+                ) +
+                ' / ' +
+                formatNumber(target);
 
         item.innerHTML = `
             <div class="milestone-name">
@@ -2623,6 +3361,19 @@ function renderMilestones() {
 
             <div class="milestone-description">
                 ${milestone.description}
+            </div>
+
+            <div class="milestone-progress">
+                <div class="milestone-progress-track">
+                    <div
+                        class="milestone-progress-fill"
+                        style="--progress: ${percent}%"
+                    ></div>
+                </div>
+
+                <div class="milestone-progress-text">
+                    ${progressText}
+                </div>
             </div>
 
             <div class="milestone-reward">
@@ -2640,7 +3391,8 @@ function renderMilestones() {
 ================================================== */
 
 function renderHistory() {
-    const list = $('historyList');
+    const list =
+        $('historyList');
 
     if (!list) {
         return;
@@ -2706,9 +3458,14 @@ function renderHistory() {
 ================================================== */
 
 function openDetails(type) {
-    const dialog = $('detailsDialog');
-    const title = $('detailsTitle');
-    const body = $('detailsBody');
+    const dialog =
+        $('detailsDialog');
+
+    const title =
+        $('detailsTitle');
+
+    const body =
+        $('detailsBody');
 
     if (!dialog || !title || !body) {
         return;
@@ -2721,27 +3478,42 @@ function openDetails(type) {
         heading = 'ANOMALY HISTORY';
 
         entries =
-            state.rareHistory.filter(function (entry) {
-                return entry.rarity === 'ANOMALY';
-            });
+            state.rareHistory.filter(
+                function (entry) {
+                    return (
+                        entry.rarity ===
+                        'ANOMALY'
+                    );
+                }
+            );
     }
 
     if (type === 'mythic') {
         heading = 'MYTHIC HISTORY';
 
         entries =
-            state.rareHistory.filter(function (entry) {
-                return entry.rarity === 'MYTHIC';
-            });
+            state.rareHistory.filter(
+                function (entry) {
+                    return (
+                        entry.rarity ===
+                        'MYTHIC'
+                    );
+                }
+            );
     }
 
     if (type === 'holy') {
         heading = 'HOLY HISTORY';
 
         entries =
-            state.rareHistory.filter(function (entry) {
-                return entry.rarity === 'HOLY';
-            });
+            state.rareHistory.filter(
+                function (entry) {
+                    return (
+                        entry.rarity ===
+                        'HOLY'
+                    );
+                }
+            );
     }
 
     title.textContent = heading;
@@ -2753,29 +3525,35 @@ function openDetails(type) {
             </div>
         `;
     } else {
-        body.innerHTML = entries
-            .slice(0, 50)
-            .map(function (entry) {
-                return `
-                    <div class="detail-row">
-                        <strong>
-                            ${formatNumber(entry.number)}
-                        </strong>
+        body.innerHTML =
+            entries
+                .slice(0, 50)
+                .map(
+                    function (entry) {
+                        return `
+                            <div class="detail-row">
+                                <strong>
+                                    ${formatNumber(entry.number)}
+                                </strong>
 
-                        <span class="${entry.rarity.toLowerCase()}">
-                            ${entry.rarity}
-                        </span>
+                                <span class="${entry.rarity.toLowerCase()}">
+                                    ${entry.rarity}
+                                </span>
 
-                        <span>
-                            ${formatEP(entry.ep)} EP
-                        </span>
-                    </div>
-                `;
-            })
-            .join('');
+                                <span>
+                                    ${formatEP(entry.ep)} EP
+                                </span>
+                            </div>
+                        `;
+                    }
+                )
+                .join('');
     }
 
-    if (typeof dialog.showModal === 'function') {
+    if (
+        typeof dialog.showModal ===
+        'function'
+    ) {
         dialog.showModal();
     } else {
         dialog.setAttribute(
@@ -2790,7 +3568,11 @@ function openDetails(type) {
    TOASTS
 ================================================== */
 
-function showToast(title, message, className) {
+function showToast(
+    title,
+    message,
+    className
+) {
     const container =
         $('toastContainer');
 
@@ -2817,13 +3599,19 @@ function showToast(title, message, className) {
 
     container.appendChild(toast);
 
-    setTimeout(function () {
-        toast.classList.add('hide');
+    setTimeout(
+        function () {
+            toast.classList.add('hide');
 
-        setTimeout(function () {
-            toast.remove();
-        }, 300);
-    }, 3500);
+            setTimeout(
+                function () {
+                    toast.remove();
+                },
+                300
+            );
+        },
+        3500
+    );
 }
 
 
@@ -2899,6 +3687,7 @@ function playRareSound() {
         gain.connect(ctx.destination);
 
         oscillator.start();
+
         oscillator.stop(
             ctx.currentTime + 0.5
         );
@@ -2928,8 +3717,6 @@ function resetStats() {
     state = cloneDefaultState();
 
     saveLocal();
-    scheduleCloudSave();
-
     renderAll();
 
     showToast(
@@ -2958,8 +3745,6 @@ function clearHistory() {
     state.rareHistory = [];
 
     saveLocal();
-    scheduleCloudSave();
-
     renderAll();
 
     showToast(
@@ -2971,246 +3756,83 @@ function clearHistory() {
 
 
 /* ==================================================
-   ACCOUNT
+   ACCOUNT / GUEST MODE
 ================================================== */
 
-function updateAuthUI(user) {
-    const signInBtn = $('signInBtn');
-    const signUpBtn = $('signUpBtn');
-    const signOutBtn = $('signOutBtn');
-    const guestBtn = $('guestBtn');
-    const status = $('authStatus');
+function updateAuthUI() {
+    const signInBtn =
+        $('signInBtn');
 
-    if (!supabaseClient) {
-        if (status) {
-            status.textContent =
-                'Cloud saving is not configured. Guest mode is active.';
-        }
+    const signUpBtn =
+        $('signUpBtn');
 
-        if (signInBtn) signInBtn.disabled = true;
-        if (signUpBtn) signUpBtn.disabled = true;
-        if (signOutBtn) signOutBtn.disabled = true;
+    const signOutBtn =
+        $('signOutBtn');
 
-        return;
+    const guestBtn =
+        $('guestBtn');
+
+    const status =
+        $('authStatus');
+
+    /*
+    Supabase is intentionally disabled.
+    Everything currently uses localStorage.
+    */
+
+    if (status) {
+        status.textContent =
+            'Guest mode active. Your progress is saved locally on this device.';
     }
 
-    if (user) {
-        if (status) {
-            status.textContent =
-                'Signed in as ' +
-                (user.email || 'account');
-        }
+    if (signInBtn) {
+        signInBtn.disabled = true;
+    }
 
-        if (signInBtn) signInBtn.disabled = true;
-        if (signUpBtn) signUpBtn.disabled = true;
-        if (signOutBtn) signOutBtn.disabled = false;
+    if (signUpBtn) {
+        signUpBtn.disabled = true;
+    }
 
-        if (guestBtn) {
-            guestBtn.textContent =
-                'Continue as Guest';
-        }
-    } else {
-        if (status) {
-            status.textContent =
-                'Not signed in. Local saving is still active.';
-        }
+    if (signOutBtn) {
+        signOutBtn.disabled = true;
+    }
 
-        if (signInBtn) signInBtn.disabled = false;
-        if (signUpBtn) signUpBtn.disabled = false;
-        if (signOutBtn) signOutBtn.disabled = true;
+    if (guestBtn) {
+        guestBtn.textContent =
+            'Continue as Guest';
     }
 }
 
 
-async function initAuth() {
-    if (!supabaseClient) {
-        updateAuthUI(null);
-        return;
-    }
-
-    try {
-        const result =
-            await supabaseClient.auth.getUser();
-
-        updateAuthUI(
-            result &&
-            result.data
-                ? result.data.user
-                : null
-        );
-
-        if (
-            result &&
-            result.data &&
-            result.data.user
-        ) {
-            await loadCloud();
-        }
-
-        supabaseClient.auth.onAuthStateChange(
-            async function (_event, session) {
-                const user =
-                    session
-                        ? session.user
-                        : null;
-
-                updateAuthUI(user);
-
-                if (user) {
-                    await loadCloud();
-                }
-            }
-        );
-    } catch (error) {
-        console.error(
-            'Auth initialization failed:',
-            error
-        );
-
-        updateAuthUI(null);
-    }
+function initAuth() {
+    updateAuthUI();
 }
 
 
-async function signIn() {
-    if (!supabaseClient) {
-        return;
-    }
-
-    const email =
-        $('emailInput')
-            ? $('emailInput').value.trim()
-            : '';
-
-    const password =
-        $('passwordInput')
-            ? $('passwordInput').value
-            : '';
-
-    if (!email || !password) {
-        showToast(
-            'LOGIN',
-            'Enter your email and password.',
-            'error-toast'
-        );
-
-        return;
-    }
-
-    try {
-        const result =
-            await supabaseClient.auth.signInWithPassword({
-                email: email,
-                password: password
-            });
-
-        if (result.error) {
-            throw result.error;
-        }
-
-        showToast(
-            'SIGNED IN',
-            'Cloud saving is now active.',
-            'success-toast'
-        );
-
-        const dialog = $('accountDialog');
-
-        if (dialog) {
-            dialog.close();
-        }
-    } catch (error) {
-        console.error(error);
-
-        showToast(
-            'LOGIN FAILED',
-            error.message || 'Could not sign in.',
-            'error-toast'
-        );
-    }
+function signIn() {
+    showToast(
+        'CLOUD ACCOUNT',
+        'Accounts are temporarily disabled. Guest saving is active.',
+        'error-toast'
+    );
 }
 
 
-async function signUp() {
-    if (!supabaseClient) {
-        return;
-    }
-
-    const email =
-        $('emailInput')
-            ? $('emailInput').value.trim()
-            : '';
-
-    const password =
-        $('passwordInput')
-            ? $('passwordInput').value
-            : '';
-
-    if (!email || !password) {
-        showToast(
-            'SIGN UP',
-            'Enter your email and password.',
-            'error-toast'
-        );
-
-        return;
-    }
-
-    try {
-        const result =
-            await supabaseClient.auth.signUp({
-                email: email,
-                password: password
-            });
-
-        if (result.error) {
-            throw result.error;
-        }
-
-        showToast(
-            'ACCOUNT CREATED',
-            'Check your email if confirmation is required.',
-            'success-toast'
-        );
-    } catch (error) {
-        console.error(error);
-
-        showToast(
-            'SIGN UP FAILED',
-            error.message || 'Could not create account.',
-            'error-toast'
-        );
-    }
+function signUp() {
+    showToast(
+        'CLOUD ACCOUNT',
+        'Accounts are temporarily disabled. Guest saving is active.',
+        'error-toast'
+    );
 }
 
 
-async function signOut() {
-    if (!supabaseClient) {
-        return;
-    }
-
-    try {
-        const result =
-            await supabaseClient.auth.signOut();
-
-        if (result.error) {
-            throw result.error;
-        }
-
-        showToast(
-            'SIGNED OUT',
-            'You are now using local guest saving.',
-            'success-toast'
-        );
-    } catch (error) {
-        console.error(error);
-
-        showToast(
-            'ERROR',
-            error.message || 'Could not sign out.',
-            'error-toast'
-        );
-    }
+function signOut() {
+    showToast(
+        'GUEST MODE',
+        'You are already using local guest saving.',
+        'success-toast'
+    );
 }
 
 
@@ -3249,9 +3871,15 @@ function renderAll() {
 ================================================== */
 
 function init() {
-    const rollBtn = $('rollBtn');
-    const autoBtn = $('autoBtn');
-    const resetBtn = $('resetBtn');
+    const rollBtn =
+        $('rollBtn');
+
+    const autoBtn =
+        $('autoBtn');
+
+    const resetBtn =
+        $('resetBtn');
+
     const clearHistoryBtn =
         $('clearHistoryBtn');
 
@@ -3336,7 +3964,10 @@ function init() {
         );
     }
 
-    if (accountBtn && accountDialog) {
+    if (
+        accountBtn &&
+        accountDialog
+    ) {
         accountBtn.addEventListener(
             'click',
             function () {
@@ -3345,7 +3976,10 @@ function init() {
         );
     }
 
-    if (accountClose && accountDialog) {
+    if (
+        accountClose &&
+        accountDialog
+    ) {
         accountClose.addEventListener(
             'click',
             function () {
@@ -3354,7 +3988,10 @@ function init() {
         );
     }
 
-    if (detailsClose && detailsDialog) {
+    if (
+        detailsClose &&
+        detailsDialog
+    ) {
         detailsClose.addEventListener(
             'click',
             function () {
@@ -3435,7 +4072,10 @@ function init() {
 }
 
 
-if (document.readyState === 'loading') {
+if (
+    document.readyState ===
+    'loading'
+) {
     document.addEventListener(
         'DOMContentLoaded',
         init
